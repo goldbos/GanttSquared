@@ -91,30 +91,44 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
         if (_task is null)
             return;
 
-        if (_task.Name != Name)
-            _undoRedo.Do(new EditTaskFieldCommand<string>(_task, "name", t => t.Name, (t, v) => t.Name = v, Name));
-
-        if (_task.Priority != Priority)
-            _undoRedo.Do(new EditTaskFieldCommand<PriorityLevel>(_task, "priority", t => t.Priority, (t, v) => t.Priority = v, Priority));
-
-        if (_task.ProgressPercent != ProgressPercent)
-            _undoRedo.Do(new EditTaskFieldCommand<int>(_task, "progress", t => t.ProgressPercent, (t, v) => t.ProgressPercent = v, ProgressPercent));
-
-        if (_task.Color != Color)
-            _undoRedo.Do(new EditTaskFieldCommand<string?>(_task, "color", t => t.Color, (t, v) => t.Color = v, Color));
-
-        if (_task.Description != Description)
-            _undoRedo.Do(new EditTaskFieldCommand<string>(_task, "description", t => t.Description, (t, v) => t.Description = v, Description));
-
-        if (_task.IsMilestone != IsMilestone)
-            _undoRedo.Do(new SetMilestoneCommand(_task, IsMilestone));
-
+        // Snapshot every draft value up front. Each _undoRedo.Do() below synchronously
+        // triggers UndoRedo.StateChanged -> MainViewModel.RebuildTree() -> a fresh
+        // SelectedNode -> Properties.LoadFrom(_task), which reassigns Name/Priority/etc.
+        // back from the task's (still only partially-updated) state. Reading from these
+        // local copies instead of the live bound properties keeps that reentrant reload
+        // from wiping out edits further down this method before their own check runs.
+        var task = _task;
+        var newName = Name;
+        var newIsMilestone = IsMilestone;
+        var newColor = Color;
+        var newPriority = Priority;
+        var newProgress = ProgressPercent;
+        var newDescription = Description;
         var newStart = DateOnly.FromDateTime(StartDate);
-        var newEnd = IsMilestone ? newStart : DateOnly.FromDateTime(EndDate);
-        if (_task.StartDate != newStart || _task.EndDate != newEnd)
-            _undoRedo.Do(new RescheduleTaskCommand(_project, _task.Id, newStart, newEnd));
+        var newEnd = newIsMilestone ? newStart : DateOnly.FromDateTime(EndDate);
 
-        LoadFrom(_task);
+        if (task.Name != newName)
+            _undoRedo.Do(new EditTaskFieldCommand<string>(task, "name", t => t.Name, (t, v) => t.Name = v, newName));
+
+        if (task.Priority != newPriority)
+            _undoRedo.Do(new EditTaskFieldCommand<PriorityLevel>(task, "priority", t => t.Priority, (t, v) => t.Priority = v, newPriority));
+
+        if (task.ProgressPercent != newProgress)
+            _undoRedo.Do(new EditTaskFieldCommand<int>(task, "progress", t => t.ProgressPercent, (t, v) => t.ProgressPercent = v, newProgress));
+
+        if (task.Color != newColor)
+            _undoRedo.Do(new EditTaskFieldCommand<string?>(task, "color", t => t.Color, (t, v) => t.Color = v, newColor));
+
+        if (task.Description != newDescription)
+            _undoRedo.Do(new EditTaskFieldCommand<string>(task, "description", t => t.Description, (t, v) => t.Description = v, newDescription));
+
+        if (task.IsMilestone != newIsMilestone)
+            _undoRedo.Do(new SetMilestoneCommand(task, newIsMilestone));
+
+        if (task.StartDate != newStart || task.EndDate != newEnd)
+            _undoRedo.Do(new RescheduleTaskCommand(_project, task.Id, newStart, newEnd));
+
+        LoadFrom(task);
         Applied?.Invoke(this, EventArgs.Empty);
     }
 }
