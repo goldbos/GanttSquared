@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="GanttSquared.csproj" />
+  <Project Path="GanttSquared.Core\GanttSquared.Core.csproj" />
+  <Project Path="GanttSquared.Core.Tests\GanttSquared.Core.Tests.csproj" />
+</Solution>

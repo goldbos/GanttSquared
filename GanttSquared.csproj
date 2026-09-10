@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="GanttSquared.Core\GanttSquared.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="GanttSquared.Core\**\*.cs" />
+    <Compile Remove="GanttSquared.Core.Tests\**\*.cs" />
+    <EmbeddedResource Remove="GanttSquared.Core\**\*.*" />
+    <EmbeddedResource Remove="GanttSquared.Core.Tests\**\*.*" />
+    <Page Remove="GanttSquared.Core\**\*.xaml" />
+    <Page Remove="GanttSquared.Core.Tests\**\*.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+</Project>

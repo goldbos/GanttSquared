@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "s2V89uZU8kc=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Admin\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Admin\\.nuget\\packages\\communitytoolkit.mvvm\\8.4.2\\communitytoolkit.mvvm.8.4.2.nupkg.sha512"
+  ],
+  "logs": []
+}

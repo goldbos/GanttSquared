@@ -1,0 +1,11 @@
+C:\Users\Admin\OneDrive - St Margaret's Berwick Grammar\Visual Studio\GanttSquared\GanttSquared.Core\obj\Debug\net10.0\GanttSquared.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Admin\OneDrive - St Margaret's Berwick Grammar\Visual Studio\GanttSquared\GanttSquared.Core\obj\Debug\net10.0\GanttSquared.Core.AssemblyInfoInputs.cache
+C:\Users\Admin\OneDrive - St Margaret's Berwick Grammar\Visual Studio\GanttSquared\GanttSquared.Core\obj\Debug\net10.0\GanttSquared.Core.AssemblyInfo.cs
+C:\Users\Admin\OneDrive - St Margaret's Berwick Grammar\Visual Studio\GanttSquared\GanttSquared.Core\obj\Debug\net10.0\GanttSquared.Core.csproj.CoreCompileInputs.cache
+C:\Users\Admin\OneDrive - St Margaret's Berwick Grammar\Visual Studio\GanttSquared\GanttSquared.Core\bin\Debug\net10.0\GanttSquared.Core.deps.json
+C:\Users\Admin\OneDrive - St Margaret's Berwick Grammar\Visual Studio\GanttSquared\GanttSquared.Core\bin\Debug\net10.0\GanttSquared.Core.dll
+C:\Users\Admin\OneDrive - St Margaret's Berwick Grammar\Visual Studio\GanttSquared\GanttSquared.Core\bin\Debug\net10.0\GanttSquared.Core.pdb
+C:\Users\Admin\OneDrive - St Margaret's Berwick Grammar\Visual Studio\GanttSquared\GanttSquared.Core\obj\Debug\net10.0\GanttSquared.Core.dll
+C:\Users\Admin\OneDrive - St Margaret's Berwick Grammar\Visual Studio\GanttSquared\GanttSquared.Core\obj\Debug\net10.0\refint\GanttSquared.Core.dll
+C:\Users\Admin\OneDrive - St Margaret's Berwick Grammar\Visual Studio\GanttSquared\GanttSquared.Core\obj\Debug\net10.0\GanttSquared.Core.pdb
+C:\Users\Admin\OneDrive - St Margaret's Berwick Grammar\Visual Studio\GanttSquared\GanttSquared.Core\obj\Debug\net10.0\ref\GanttSquared.Core.dll
