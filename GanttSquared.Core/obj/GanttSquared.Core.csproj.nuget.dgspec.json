@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Admin\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\GanttSquared.Core.csproj": {}
+    "C:\\Users\\goldbos\\OneDrive - St Margaret's Berwick Grammar\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\GanttSquared.Core.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Admin\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\GanttSquared.Core.csproj": {
+    "C:\\Users\\goldbos\\OneDrive - St Margaret's Berwick Grammar\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\GanttSquared.Core.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Admin\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\GanttSquared.Core.csproj",
+        "projectUniqueName": "C:\\Users\\goldbos\\OneDrive - St Margaret's Berwick Grammar\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\GanttSquared.Core.csproj",
         "projectName": "GanttSquared.Core",
-        "projectPath": "C:\\Users\\Admin\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\GanttSquared.Core.csproj",
-        "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Admin\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\obj\\",
+        "projectPath": "C:\\Users\\goldbos\\OneDrive - St Margaret's Berwick Grammar\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\GanttSquared.Core.csproj",
+        "packagesPath": "C:\\Users\\goldbos\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\goldbos\\OneDrive - St Margaret's Berwick Grammar\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\goldbos\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
@@ -63,7 +63,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.400/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.401/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
