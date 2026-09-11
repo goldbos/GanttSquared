@@ -16,6 +16,11 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
     private readonly UndoRedoManager _undoRedo;
     private GanttTask? _task;
 
+    // CommunityToolkit.Mvvm only auto-requeries a [RelayCommand]'s CanExecute when the
+    // property it reads carries [NotifyCanExecuteChangedFor] — without it, SaveCommand's
+    // enabled state is frozen at its first evaluation (false, before anything is selected)
+    // and never updates, no matter how many tasks get selected afterward.
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     [ObservableProperty]
     private bool _hasSelection;
 

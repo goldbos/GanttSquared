@@ -17,6 +17,14 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<TaskNodeViewModel> RootNodes { get; } = new();
 
+    // Same CanExecute-requery gap as TaskPropertiesViewModel.HasSelection: these commands'
+    // CanExecute reads SelectedNode via CanEditSelection(), but nothing calls
+    // NotifyCanExecuteChanged() when SelectedNode changes unless we say so here - otherwise
+    // Delete/Indent/Outdent stay disabled until some unrelated UndoRedo action happens to
+    // refresh them as a side effect.
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(IndentSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OutdentSelectedCommand))]
     [ObservableProperty]
     private TaskNodeViewModel? _selectedNode;
 

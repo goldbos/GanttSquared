@@ -1,0 +1,91 @@
+<Window x:Class="GanttSquared.TestEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:GanttSquared.ViewModels"
+        Title="GanttSquared - Property Edit Test" Height="640" Width="1000">
+
+    <Window.Resources>
+        <HierarchicalDataTemplate x:Key="TaskNodeTemplate" DataType="{x:Type vm:TaskNodeViewModel}"
+                                   ItemsSource="{Binding Children}">
+            <TextBlock Margin="2">
+                <Run Text="{Binding Name, Mode=OneWay}"/>
+                <Run Text=" ("/>
+                <Run Text="{Binding DateRangeText, Mode=OneWay}"/>
+                <Run Text=")"/>
+            </TextBlock>
+        </HierarchicalDataTemplate>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="280"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Task list -->
+        <DockPanel Grid.Column="0">
+            <TextBlock DockPanel.Dock="Top" Text="Tasks" FontWeight="Bold" Margin="0,0,0,6"/>
+            <TreeView x:Name="TaskTree" ItemsSource="{Binding RootNodes}"
+                      ItemTemplate="{StaticResource TaskNodeTemplate}"
+                      SelectedItemChanged="TaskTree_SelectedItemChanged"/>
+        </DockPanel>
+
+        <!-- Edit form: bound to the real TaskPropertiesViewModel / SaveCommand -->
+        <StackPanel Grid.Column="2" DataContext="{Binding Properties}">
+            <TextBlock Text="Edit Properties" FontWeight="Bold" Margin="0,0,0,10"/>
+
+            <TextBlock Text="Name"/>
+            <TextBox x:Name="NameTextBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,8"/>
+
+            <CheckBox Content="Milestone" IsChecked="{Binding IsMilestone}" Margin="0,0,0,8"/>
+
+            <TextBlock Text="Start Date"/>
+            <DatePicker SelectedDate="{Binding StartDate}" Margin="0,2,0,8"/>
+
+            <TextBlock Text="End Date"/>
+            <DatePicker SelectedDate="{Binding EndDate}" Margin="0,2,0,8"/>
+
+            <TextBlock Text="Duration (days)"/>
+            <TextBox Text="{Binding DurationDays, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,8"/>
+
+            <TextBlock Text="Color (hex)"/>
+            <TextBox Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,8"/>
+
+            <TextBlock Text="Priority"/>
+            <ComboBox x:Name="PriorityComboBox" ItemsSource="{Binding PriorityLevels}" SelectedItem="{Binding Priority}" Margin="0,2,0,8"/>
+
+            <TextBlock Text="Progress (%)"/>
+            <TextBox x:Name="ProgressTextBox" Text="{Binding ProgressPercent, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,8"/>
+
+            <TextBlock Text="Description"/>
+            <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                     AcceptsReturn="True" TextWrapping="Wrap" Height="60" Margin="0,2,0,8"/>
+
+            <Button x:Name="SaveButton" Content="Save" Command="{Binding SaveCommand}" Width="100"
+                    HorizontalAlignment="Left" Padding="6,4"/>
+        </StackPanel>
+
+        <!-- Verification panel: reads straight from the underlying GanttTask model,
+             not the edit draft, so a stuck/unsaved field is visible immediately. -->
+        <StackPanel Grid.Column="4">
+            <TextBlock Text="Underlying Task State (post-save)" FontWeight="Bold" Margin="0,0,0,6"/>
+            <TextBlock Text="Reads directly from the GanttTask model, not the edit draft."
+                       TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
+
+            <TextBlock x:Name="VerifyName" Text="{Binding SelectedNode.Task.Name, StringFormat='Name: {0}'}" Margin="0,2"/>
+            <TextBlock Text="{Binding SelectedNode.Task.IsMilestone, StringFormat='Milestone: {0}'}" Margin="0,2"/>
+            <TextBlock Text="{Binding SelectedNode.Task.StartDate, StringFormat='Start: {0:d}'}" Margin="0,2"/>
+            <TextBlock Text="{Binding SelectedNode.Task.EndDate, StringFormat='End: {0:d}'}" Margin="0,2"/>
+            <TextBlock Text="{Binding SelectedNode.Task.Color, StringFormat='Color: {0}'}" Margin="0,2"/>
+            <TextBlock x:Name="VerifyPriority" Text="{Binding SelectedNode.Task.Priority, StringFormat='Priority: {0}'}" Margin="0,2"/>
+            <TextBlock x:Name="VerifyProgress" Text="{Binding SelectedNode.Task.ProgressPercent, StringFormat='Progress: {0}%'}" Margin="0,2"/>
+            <TextBlock Text="{Binding SelectedNode.Task.Description, StringFormat='Description: {0}'}"
+                       TextWrapping="Wrap" Margin="0,2"/>
+
+            <TextBlock x:Name="SavedFlag" Foreground="Green" FontWeight="Bold" Margin="0,16,0,0"/>
+        </StackPanel>
+    </Grid>
+</Window>
