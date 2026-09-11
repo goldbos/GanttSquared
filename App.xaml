@@ -1,8 +1,7 @@
 ﻿<Application x:Class="GanttSquared.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:GanttSquared"
-             StartupUri="MainWindow.xaml">
+             xmlns:local="clr-namespace:GanttSquared">
     <Application.Resources>
          
     </Application.Resources>
