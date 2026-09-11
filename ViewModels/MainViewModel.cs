@@ -1,9 +1,12 @@
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GanttSquared.Core.Commands;
 using GanttSquared.Core.Model;
+using GanttSquared.Core.Persistence;
+using Microsoft.Win32;
 
 namespace GanttSquared.ViewModels;
 
@@ -31,6 +34,24 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _searchText = string.Empty;
 
+    /// <summary>Path this project was last saved to or loaded from; null for a never-saved project.</summary>
+    [NotifyPropertyChangedFor(nameof(WindowTitleText))]
+    [ObservableProperty]
+    private string? _currentFilePath;
+
+    /// <summary>
+    /// True if there are changes since the last save. Simplified: any undo-stack activity
+    /// (including Undo/Redo) marks the project dirty, even if it lands back on exactly the
+    /// last-saved state - tracking that precisely would mean comparing against the undo
+    /// stack's depth at save time, which UndoRedoManager doesn't currently expose.
+    /// </summary>
+    [NotifyPropertyChangedFor(nameof(WindowTitleText))]
+    [ObservableProperty]
+    private bool _isDirty;
+
+    public string WindowTitleText =>
+        $"{Project.Name}{(IsDirty ? " *" : "")}{(CurrentFilePath is null ? " (unsaved)" : "")}";
+
     public MainViewModel()
     {
         Project = new ProjectModel { Name = "Website Redesign Project" };
@@ -40,6 +61,7 @@ public sealed partial class MainViewModel : ObservableObject
         UndoRedo.StateChanged += (_, _) =>
         {
             RebuildTree();
+            IsDirty = true;
             NewTaskCommand.NotifyCanExecuteChanged();
             DeleteSelectedCommand.NotifyCanExecuteChanged();
             IndentSelectedCommand.NotifyCanExecuteChanged();
@@ -157,6 +179,89 @@ public sealed partial class MainViewModel : ObservableObject
     private void Redo() => UndoRedo.Redo();
 
     private bool CanRedo() => UndoRedo.CanRedo;
+
+    [RelayCommand]
+    private void SaveProject()
+    {
+        if (CurrentFilePath is null)
+        {
+            SaveProjectAs();
+            return;
+        }
+
+        ProjectFileSerializer.Save(Project, CurrentFilePath);
+        IsDirty = false;
+    }
+
+    [RelayCommand]
+    private void SaveProjectAs()
+    {
+        var dialog = new SaveFileDialog
+        {
+            Filter = "GanttSquared Project (*.gantt.json)|*.gantt.json|All files (*.*)|*.*",
+            DefaultExt = ".gantt.json",
+            FileName = Project.Name
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        ProjectFileSerializer.Save(Project, dialog.FileName);
+        CurrentFilePath = dialog.FileName;
+        IsDirty = false;
+    }
+
+    [RelayCommand]
+    private void OpenProject()
+    {
+        if (!ConfirmProceedPastUnsavedChanges("opening another project"))
+            return;
+
+        var dialog = new OpenFileDialog
+        {
+            Filter = "GanttSquared Project (*.gantt.json)|*.gantt.json|All files (*.*)|*.*"
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var loaded = ProjectFileSerializer.Load(dialog.FileName);
+        Project.ReplaceContents(loaded);
+        UndoRedo.Clear();
+        CurrentFilePath = dialog.FileName;
+        IsDirty = false;
+        SelectedNode = null;
+        RebuildTree();
+    }
+
+    /// <summary>
+    /// If there are unsaved changes, asks the user whether to save, discard, or cancel.
+    /// Returns true if the caller is clear to proceed (nothing to save, changes were saved,
+    /// or the user chose to discard); false if the caller should abandon what it was doing.
+    /// Used both when opening a different project and when the window is closing.
+    /// </summary>
+    public bool ConfirmProceedPastUnsavedChanges(string actionDescription)
+    {
+        if (!IsDirty)
+            return true;
+
+        var result = MessageBox.Show(
+            $"'{Project.Name}' has unsaved changes. Save before {actionDescription}?",
+            "Unsaved Changes",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Warning);
+
+        switch (result)
+        {
+            case MessageBoxResult.Yes:
+                SaveProject();
+                return !IsDirty; // stays true if the user cancelled the Save As dialog
+            case MessageBoxResult.No:
+                return true;
+            default:
+                return false;
+        }
+    }
 
     [RelayCommand]
     private void Search()

@@ -103,6 +103,32 @@ public sealed class ProjectModel
         }
     }
 
+    /// <summary>
+    /// Replaces this project's entire contents with another instance's (e.g. one just loaded
+    /// from disk), in place. Lets a loaded project take effect without invalidating anything
+    /// that already holds a reference to this ProjectModel - callers only ever see one
+    /// instance's identity, its data just gets swapped out underneath them.
+    /// </summary>
+    public void ReplaceContents(ProjectModel source)
+    {
+        _tasks.Clear();
+        _tasksById.Clear();
+        _dependencies.Clear();
+        _resources.Clear();
+
+        Name = source.Name;
+        UseWbsNumbering = source.UseWbsNumbering;
+
+        foreach (var task in source._tasks)
+        {
+            _tasks.Add(task);
+            _tasksById[task.Id] = task;
+        }
+
+        _dependencies.AddRange(source._dependencies);
+        _resources.AddRange(source._resources);
+    }
+
     internal void RestoreTasks(IEnumerable<GanttTask> tasks)
     {
         foreach (var t in tasks)

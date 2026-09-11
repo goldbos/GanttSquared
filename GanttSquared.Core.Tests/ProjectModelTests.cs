@@ -8,6 +8,29 @@ public class ProjectModelTests
         new(name, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
 
     [Fact]
+    public void ReplaceContents_SwapsDataButKeepsInstanceIdentity()
+    {
+        var project = new ProjectModel { Name = "Original" };
+        var original = MakeTask("Original Task");
+        project.AddTask(original);
+
+        var loaded = new ProjectModel { Name = "Loaded", UseWbsNumbering = true };
+        var loadedTask = MakeTask("Loaded Task");
+        loaded.AddTask(loadedTask);
+        var resource = new ProjectResource { Name = "Bob" };
+        loaded.AddResource(resource);
+
+        project.ReplaceContents(loaded);
+
+        Assert.Equal("Loaded", project.Name);
+        Assert.True(project.UseWbsNumbering);
+        Assert.Null(project.FindTask(original.Id));
+        Assert.NotNull(project.FindTask(loadedTask.Id));
+        Assert.Single(project.Resources);
+        Assert.Equal("Bob", project.Resources[0].Name);
+    }
+
+    [Fact]
     public void AddTask_AssignsOrderIndex()
     {
         var project = new ProjectModel();

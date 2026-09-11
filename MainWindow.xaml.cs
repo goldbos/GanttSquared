@@ -13,6 +13,13 @@ namespace GanttSquared
         {
             InitializeComponent();
             DataContext = new MainViewModel();
+            Closing += MainWindow_Closing;
+        }
+
+        private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (!ViewModel.ConfirmProceedPastUnsavedChanges("closing"))
+                e.Cancel = true;
         }
 
         private void TaskTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
