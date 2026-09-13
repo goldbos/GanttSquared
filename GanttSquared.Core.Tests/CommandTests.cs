@@ -139,4 +139,78 @@ public class CommandTests
         Assert.NotNull(project.FindTask(a.Id));
         Assert.Single(project.Dependencies);
     }
+
+    [Fact]
+    public void RescheduleTaskCommand_NonCascading_LeavesSuccessorInPlace()
+    {
+        var project = new ProjectModel();
+        var manager = new UndoRedoManager();
+        var a = MakeTask("A", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        var b = MakeTask("B", new DateOnly(2026, 1, 6), new DateOnly(2026, 1, 10));
+        project.AddTask(a);
+        project.AddTask(b);
+        project.AddDependency(new DependencyLink(a.Id, b.Id, DependencyType.FinishToStart));
+
+        manager.Do(new RescheduleTaskCommand(project, a.Id, new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 8), cascade: false));
+
+        Assert.Equal(new DateOnly(2026, 1, 8), a.EndDate);
+        Assert.Equal(new DateOnly(2026, 1, 6), b.StartDate); // unchanged, even though it now overlaps A
+
+        manager.Undo();
+        Assert.Equal(new DateOnly(2026, 1, 5), a.EndDate);
+    }
+
+    [Fact]
+    public void CompositeCommand_UndoesAllStepsInReverseOrder()
+    {
+        var project = new ProjectModel();
+        var manager = new UndoRedoManager();
+        var a = MakeTask("A", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        var b = MakeTask("B", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+
+        manager.Do(new CompositeCommand(new IUndoableCommand[]
+        {
+            new AddTaskCommand(project, a),
+            new AddTaskCommand(project, b)
+        }));
+
+        Assert.Equal(2, project.Tasks.Count);
+
+        manager.Undo();
+        Assert.Empty(project.Tasks);
+    }
+
+    [Fact]
+    public void ReparentTaskCommand_MovesTaskUnderNewParent_AndUndoRestores()
+    {
+        var project = new ProjectModel();
+        var manager = new UndoRedoManager();
+        var oldParent = MakeTask("OldParent", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        var newParent = MakeTask("NewParent", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        var child = MakeTask("Child", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        project.AddTask(oldParent);
+        project.AddTask(newParent);
+        child.ParentId = oldParent.Id;
+        project.AddTask(child);
+
+        manager.Do(new ReparentTaskCommand(project, child.Id, newParent.Id));
+
+        Assert.Equal(newParent.Id, child.ParentId);
+
+        manager.Undo();
+        Assert.Equal(oldParent.Id, child.ParentId);
+    }
+
+    [Fact]
+    public void ReparentTaskCommand_UnderOwnDescendant_Throws()
+    {
+        var project = new ProjectModel();
+        var parent = MakeTask("Parent", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        var child = MakeTask("Child", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        project.AddTask(parent);
+        child.ParentId = parent.Id;
+        project.AddTask(child);
+
+        Assert.Throws<InvalidOperationException>(() => new ReparentTaskCommand(project, parent.Id, child.Id).Execute());
+    }
 }

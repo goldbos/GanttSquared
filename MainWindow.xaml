@@ -14,6 +14,11 @@
     <Window.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
         <conv:InverseBooleanConverter x:Key="InverseBool"/>
+        <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
+        <conv:HexToBrushConverter x:Key="HexToBrush"/>
+        <conv:DepthToIndentConverter x:Key="DepthToIndent"/>
+        <conv:DoubleToLeftMarginConverter x:Key="DoubleToLeftMargin"/>
+        <conv:ExpandGlyphConverter x:Key="ExpandGlyph"/>
         <SolidColorBrush x:Key="PanelBrush" Color="#FF1E1F24"/>
         <SolidColorBrush x:Key="PanelAltBrush" Color="#FF24252B"/>
         <SolidColorBrush x:Key="BorderBrush2" Color="#FF34353D"/>
@@ -248,17 +253,48 @@
             <Setter Property="Background" Value="#FF3A3B42"/>
         </Style>
 
-        <!-- Recursive template for the hierarchical task tree -->
-        <HierarchicalDataTemplate x:Key="TaskNodeTemplate" DataType="{x:Type vm:TaskNodeViewModel}"
-                                   ItemsSource="{Binding Children}">
-            <Grid Margin="2,4">
+        <!-- Flattened task-list row (shared row order/height with the Gantt canvas so rows line up) -->
+        <Style x:Key="RowToggleButton" TargetType="Button">
+            <Setter Property="Width" Value="16"/>
+            <Setter Property="Height" Value="16"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <DataTemplate x:Key="TaskRowTemplate" DataType="{x:Type vm:TaskNodeViewModel}">
+            <Grid Height="32">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="18"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Ellipse Grid.Column="0" Width="9" Height="9" Fill="#FF6B7280" VerticalAlignment="Center">
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Border Width="{Binding Depth, Converter={StaticResource DepthToIndent}}"/>
+                    <Button Style="{StaticResource RowToggleButton}"
+                            Command="{Binding DataContext.ToggleExpandCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}">
+                        <TextBlock Foreground="{StaticResource MutedTextBrush}" FontSize="9">
+                            <TextBlock.Text>
+                                <MultiBinding Converter="{StaticResource ExpandGlyph}">
+                                    <Binding Path="IsGroup"/>
+                                    <Binding Path="IsExpanded"/>
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                    </Button>
+                </StackPanel>
+
+                <Ellipse Grid.Column="1" Width="9" Height="9" Fill="#FF6B7280" VerticalAlignment="Center">
                     <Ellipse.Style>
                         <Style TargetType="Ellipse">
                             <Style.Triggers>
@@ -269,7 +305,7 @@
                         </Style>
                     </Ellipse.Style>
                 </Ellipse>
-                <Path Grid.Column="0" Width="9" Height="9" Fill="#FF60A5FA" Stretch="Uniform"
+                <Path Grid.Column="1" Width="9" Height="9" Fill="#FF60A5FA" Stretch="Uniform"
                       Data="M 0.5,0.5 L 1,0 L 1.5,0.5 L 1,1 Z" VerticalAlignment="Center">
                     <Path.Style>
                         <Style TargetType="Path">
@@ -283,18 +319,164 @@
                     </Path.Style>
                 </Path>
 
-                <TextBlock Grid.Column="1" Text="{Binding Name}" Margin="8,0,0,0"
-                           Foreground="#FFE8E9ED" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2" Text="{Binding DateRangeText}" Margin="10,0,4,0"
+                <TextBlock Grid.Column="2" Text="{Binding Name}" Margin="8,0,0,0"
+                           Foreground="#FFE8E9ED" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           Visibility="{Binding IsEditingName, Converter={StaticResource InverseBoolToVisibility}}"/>
+                <TextBox x:Name="InlineRenameBox" Grid.Column="2" Margin="6,2,4,2" VerticalAlignment="Center"
+                         Text="{Binding EditingNameDraft, UpdateSourceTrigger=PropertyChanged}"
+                         Visibility="{Binding IsEditingName, Converter={StaticResource BoolToVisibility}}"
+                         KeyDown="InlineRenameBox_KeyDown" LostFocus="InlineRenameBox_LostFocus"/>
+                <TextBlock Grid.Column="3" Text="{Binding DateRangeText}" Margin="10,0,10,0"
                            Foreground="#FF9AA0AC" FontSize="11" VerticalAlignment="Center"/>
-            </Grid>
-        </HierarchicalDataTemplate>
 
-        <Style TargetType="TreeViewItem">
-            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                <Border Grid.Column="0" Grid.ColumnSpan="4" VerticalAlignment="Bottom" Height="1"
+                        Background="{StaticResource BorderBrush2}"/>
+            </Grid>
+        </DataTemplate>
+
+        <Style x:Key="TaskListBoxItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-            <Setter Property="Padding" Value="2"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsAlternateRow}" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource RowAltBrush}"/>
+                            </DataTrigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#FF2A2B32"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource AccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Alternating row background plus a full-width bottom divider, painted behind the Gantt bars and aligned to the same VisibleRows order -->
+        <DataTemplate x:Key="CanvasRowStripeTemplate" DataType="{x:Type vm:TaskNodeViewModel}">
+            <Grid Width="{Binding DataContext.CanvasWidth, RelativeSource={RelativeSource AncestorType=Window}}" Height="32">
+                <Rectangle>
+                    <Rectangle.Style>
+                        <Style TargetType="Rectangle">
+                            <Setter Property="Fill" Value="Transparent"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsAlternateRow}" Value="True">
+                                    <Setter Property="Fill" Value="#FF1C1D22"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Rectangle.Style>
+                </Rectangle>
+                <Border VerticalAlignment="Bottom" Height="1" Background="{StaticResource BorderBrush2}"/>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Gantt bar / milestone diamond. No Button wrapper: the root Grid handles its own
+             mouse-down/move/up in code-behind so it can distinguish a plain click (select) from
+             a drag starting in its middle (move) or within ~6px of an edge (resize). -->
+        <DataTemplate x:Key="GanttBarTemplate" DataType="{x:Type vm:TaskNodeViewModel}">
+            <Grid x:Name="BarRoot" Height="32" Background="Transparent" ToolTip="{Binding Name}"
+                  MouseLeftButtonDown="Bar_MouseLeftButtonDown"
+                  MouseMove="Bar_MouseMove"
+                  MouseLeftButtonUp="Bar_MouseLeftButtonUp">
+                <Border Height="22" CornerRadius="4" VerticalAlignment="Center" HorizontalAlignment="Left"
+                        Width="{Binding BarWidth}" Background="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
+                        Opacity="0.32" IsHitTestVisible="False"
+                        Visibility="{Binding IsMilestone, Converter={StaticResource InverseBoolToVisibility}}"/>
+                <Border Height="22" CornerRadius="4" VerticalAlignment="Center" HorizontalAlignment="Left"
+                        Width="{Binding ProgressWidth}" Background="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
+                        IsHitTestVisible="False"
+                        Visibility="{Binding IsMilestone, Converter={StaticResource InverseBoolToVisibility}}"/>
+                <TextBlock Text="{Binding Name}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="White" FontSize="11"
+                           IsHitTestVisible="False"
+                           Visibility="{Binding IsMilestone, Converter={StaticResource InverseBoolToVisibility}}"/>
+                <Path Width="15" Height="15" Stretch="Uniform" Margin="-7,0,0,0" HorizontalAlignment="Left"
+                      Data="M 7.5,0 L 15,7.5 L 7.5,15 L 0,7.5 Z"
+                      Fill="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
+                      IsHitTestVisible="False"
+                      Visibility="{Binding IsMilestone, Converter={StaticResource BoolToVisibility}}"/>
+
+                <!-- Dependency-link handle: hover-only, sits just past the bar's right edge; dragging from it onto another bar creates a link. -->
+                <Ellipse Width="10" Height="10" Fill="{StaticResource AccentBrush}" Stroke="White" StrokeThickness="1"
+                         HorizontalAlignment="Left" VerticalAlignment="Center" Cursor="Cross"
+                         Margin="{Binding BarWidth, Converter={StaticResource DoubleToLeftMargin}}"
+                         MouseLeftButtonDown="LinkHandle_MouseLeftButtonDown"
+                         MouseMove="LinkHandle_MouseMove"
+                         MouseLeftButtonUp="LinkHandle_MouseLeftButtonUp">
+                    <Ellipse.Style>
+                        <Style TargetType="Ellipse">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsMouseOver, ElementName=BarRoot}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Ellipse.Style>
+                </Ellipse>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Timeline header tick -->
+        <DataTemplate x:Key="TimelineTickTemplate" DataType="{x:Type vm:TimelineTick}">
+            <TextBlock Text="{Binding Label}" Foreground="{StaticResource MutedTextBrush}" FontSize="10" Margin="4,10,0,0"/>
+        </DataTemplate>
+
+        <!-- Vertical gridline at each tick, spanning the full canvas height -->
+        <DataTemplate x:Key="GridlineTemplate" DataType="{x:Type vm:TimelineTick}">
+            <Rectangle Width="1" Fill="{StaticResource BorderBrush2}" Opacity="0.6"
+                       Height="{Binding DataContext.CanvasHeight, RelativeSource={RelativeSource AncestorType=Window}}"/>
+        </DataTemplate>
+
+        <!-- Dependency connector: elbow path plus arrowhead -->
+        <DataTemplate x:Key="DependencyLineTemplate" DataType="{x:Type vm:DependencyLineViewModel}">
+            <Canvas>
+                <Path Data="{Binding PathData}" Stroke="#FF5B6472" StrokeThickness="1.4"/>
+                <Polygon Points="{Binding ArrowPoints}" Fill="#FF5B6472"/>
+            </Canvas>
+        </DataTemplate>
+
+        <Style x:Key="ZoomButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
+            <Setter Property="Background" Value="#FF2A2B32"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#FF34353D"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ResetZoomButtonStyle" TargetType="Button" BasedOn="{StaticResource ZoomButtonStyle}">
+            <Setter Property="Width" Value="Auto"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="FontSize" Value="11"/>
         </Style>
     </Window.Resources>
 
@@ -378,23 +560,150 @@
 
         <!-- Task list -->
         <Border Grid.Column="1" Grid.Row="1" Background="{StaticResource PanelBrush}">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="Task / Section" Style="{StaticResource PanelLabel}" Margin="10,10,0,6"/>
-                <TreeView x:Name="TaskTree" Background="Transparent" BorderThickness="0"
-                          ItemsSource="{Binding RootNodes}"
-                          ItemTemplate="{StaticResource TaskNodeTemplate}"
-                          SelectedItemChanged="TaskTree_SelectedItemChanged"/>
-            </DockPanel>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="28"/>
+                    <RowDefinition Height="32"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="1" Text="Task / Section" Style="{StaticResource PanelLabel}"
+                           Margin="10,0,0,0" VerticalAlignment="Center"/>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center">
+                    <Button Content="Expand All" Style="{StaticResource ResetZoomButtonStyle}" Command="{Binding ExpandAllCommand}"/>
+                    <Button Content="Collapse All" Style="{StaticResource ResetZoomButtonStyle}" Command="{Binding CollapseAllCommand}"/>
+                </StackPanel>
+                <Border Grid.Row="1" VerticalAlignment="Bottom" Height="1" Background="{StaticResource BorderBrush2}"/>
+
+                <ScrollViewer x:Name="TaskListScroll" Grid.Row="2"
+                              VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
+                    <ListBox x:Name="TaskList" ItemsSource="{Binding VisibleRows}" ItemTemplate="{StaticResource TaskRowTemplate}"
+                             ItemContainerStyle="{StaticResource TaskListBoxItemStyle}"
+                             SelectionMode="Extended" AllowDrop="True"
+                             ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             Background="Transparent" BorderThickness="0"/>
+                </ScrollViewer>
+            </Grid>
         </Border>
 
         <GridSplitter Grid.Column="2" Grid.Row="1" Width="5" HorizontalAlignment="Stretch"
                       Background="{StaticResource BorderBrush2}"/>
 
-        <!-- Canvas placeholder (Phase 3) -->
+        <!-- Gantt canvas -->
         <Border Grid.Column="3" Grid.Row="1" Background="#FF19191E">
             <Grid>
-                <TextBlock Text="Gantt canvas — coming in Phase 3" Foreground="{StaticResource MutedTextBrush}"
-                           HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14"/>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="28"/>
+                    <RowDefinition Height="32"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Zoom toolbar -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <Button Content="&#8722;" Style="{StaticResource ZoomButtonStyle}" Command="{Binding ZoomOutCommand}" ToolTip="Zoom Out"/>
+                    <Button Content="+" Style="{StaticResource ZoomButtonStyle}" Command="{Binding ZoomInCommand}" ToolTip="Zoom In"/>
+                    <Button Content="Reset" Style="{StaticResource ResetZoomButtonStyle}"
+                            Command="{Binding ResetZoomCommand}" ToolTip="Reset Zoom"/>
+                </StackPanel>
+
+                <!-- Timeline header (horizontal scroll only, synced to the canvas body) -->
+                <Border Grid.Row="1" Background="{StaticResource PanelAltBrush}"
+                        BorderBrush="{StaticResource BorderBrush2}" BorderThickness="0,1,0,1">
+                    <ScrollViewer x:Name="HeaderScroll" VerticalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Hidden" IsHitTestVisible="False">
+                        <ItemsControl ItemsSource="{Binding Timeline.Ticks}" ItemTemplate="{StaticResource TimelineTickTemplate}"
+                                      HorizontalAlignment="Left" VerticalAlignment="Top">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas Width="{Binding CanvasWidth}" Height="32"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Canvas body: gridlines, alternating row stripes, dependency lines, bars, today marker -->
+                <ScrollViewer x:Name="CanvasScroll" Grid.Row="2" Background="Transparent"
+                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <Grid x:Name="CanvasBodyGrid" Background="Transparent">
+                        <ItemsControl ItemsSource="{Binding VisibleRows}" ItemTemplate="{StaticResource CanvasRowStripeTemplate}"
+                                      HorizontalAlignment="Left" VerticalAlignment="Top">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas Width="{Binding CanvasWidth}" Height="{Binding CanvasHeight}"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Top" Value="{Binding RowTop}"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                        </ItemsControl>
+
+                        <ItemsControl ItemsSource="{Binding Timeline.Ticks}" ItemTemplate="{StaticResource GridlineTemplate}"
+                                      HorizontalAlignment="Left" VerticalAlignment="Top">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas Width="{Binding CanvasWidth}" Height="{Binding CanvasHeight}"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                        </ItemsControl>
+
+                        <ItemsControl ItemsSource="{Binding DependencyLines}" ItemTemplate="{StaticResource DependencyLineTemplate}"
+                                      HorizontalAlignment="Left" VerticalAlignment="Top">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas Width="{Binding CanvasWidth}" Height="{Binding CanvasHeight}"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+
+                        <Rectangle Width="1.5" Fill="#FFEF4444" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                   Height="{Binding CanvasHeight}"
+                                   Margin="{Binding Timeline.TodayX, Converter={StaticResource DoubleToLeftMargin}}"/>
+
+                        <ItemsControl ItemsSource="{Binding VisibleRows}" ItemTemplate="{StaticResource GanttBarTemplate}"
+                                      HorizontalAlignment="Left" VerticalAlignment="Top">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas Width="{Binding CanvasWidth}" Height="{Binding CanvasHeight}"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{Binding BarX}"/>
+                                    <Setter Property="Canvas.Top" Value="{Binding RowTop}"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                        </ItemsControl>
+
+                        <!-- Live rubber-band preview while dragging a dependency link from one bar to another -->
+                        <Line X1="{Binding DragLinkX1}" Y1="{Binding DragLinkY1}" X2="{Binding DragLinkX2}" Y2="{Binding DragLinkY2}"
+                              StrokeThickness="2" StrokeDashArray="4,2"
+                              Visibility="{Binding IsDraggingLink, Converter={StaticResource BoolToVisibility}}">
+                            <Line.Style>
+                                <Style TargetType="Line">
+                                    <Setter Property="Stroke" Value="#FFEF4444"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding DragLinkIsValid}" Value="True">
+                                            <Setter Property="Stroke" Value="#FF22C55E"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Line.Style>
+                        </Line>
+                    </Grid>
+                </ScrollViewer>
             </Grid>
         </Border>
 

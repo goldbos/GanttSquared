@@ -1,10 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "Y4mawWNmaPg=",
+  "dgSpecHash": "/ZfZT1AreCw=",
   "success": true,
-  "projectFilePath": "C:\\Users\\goldbos\\OneDrive - St Margaret's Berwick Grammar\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.csproj",
+  "projectFilePath": "C:\\Users\\Admin\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\goldbos\\.nuget\\packages\\communitytoolkit.mvvm\\8.4.2\\communitytoolkit.mvvm.8.4.2.nupkg.sha512"
+    "C:\\Users\\Admin\\.nuget\\packages\\communitytoolkit.mvvm\\8.4.2\\communitytoolkit.mvvm.8.4.2.nupkg.sha512"
   ],
   "logs": []
 }

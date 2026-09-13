@@ -53,3 +53,32 @@ C:\Users\goldbos\OneDrive - St Margaret's Berwick Grammar\Documents\Visual Studi
 C:\Users\goldbos\OneDrive - St Margaret's Berwick Grammar\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared.pdb
 C:\Users\goldbos\OneDrive - St Margaret's Berwick Grammar\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared.genruntimeconfig.cache
 C:\Users\goldbos\OneDrive - St Margaret's Berwick Grammar\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\ref\GanttSquared.dll
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\bin\Debug\net10.0-windows\GanttSquared.exe
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\bin\Debug\net10.0-windows\GanttSquared.deps.json
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\bin\Debug\net10.0-windows\GanttSquared.runtimeconfig.json
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\bin\Debug\net10.0-windows\GanttSquared.dll
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\bin\Debug\net10.0-windows\GanttSquared.pdb
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\bin\Debug\net10.0-windows\CommunityToolkit.Mvvm.dll
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\bin\Debug\net10.0-windows\GanttSquared.Core.dll
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\bin\Debug\net10.0-windows\GanttSquared.Core.pdb
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared.csproj.AssemblyReference.cache
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\MainWindow.g.cs
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\TestEditWindow.g.cs
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\App.g.cs
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GeneratedInternalTypeHelper.g.cs
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared_MarkupCompile.cache
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared_MarkupCompile.lref
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\MainWindow.baml
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\TestEditWindow.baml
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared.g.resources
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared.AssemblyInfoInputs.cache
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared.AssemblyInfo.cs
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared.csproj.CoreCompileInputs.cache
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared.sourcelink.json
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSqu.8E37709C.Up2Date
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared.dll
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\refint\GanttSquared.dll
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared.pdb
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\GanttSquared.genruntimeconfig.cache
+C:\Users\Admin\Documents\Visual Studio\GanttSquared\obj\Debug\net10.0-windows\ref\GanttSquared.dll
