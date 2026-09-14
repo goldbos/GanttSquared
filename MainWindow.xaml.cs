@@ -341,6 +341,7 @@ namespace GanttSquared
             ("RowAltBrush", "#FF212227", "#FFF8F9FB"),
             ("FieldBackgroundBrush", "#FF2A2B32", "#FFF3F4F6"),
             ("CanvasBackgroundBrush", "#FF19191E", "#FFFAFAFB"),
+            ("LinkLineBrush", "#FF8B94A6", "#FF475569"),
         };
 
         private void ApplyTheme(bool isDark)
@@ -382,6 +383,20 @@ namespace GanttSquared
             else if ((e.Key == Key.F2 || e.Key == Key.Enter) && ViewModel.SelectedNode is { } node && !node.IsEditingName)
             {
                 BeginInlineRename(node);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Delete && ViewModel.SelectedNode is not { IsEditingName: true })
+            {
+                if (ViewModel.DeleteSelectedCommand.CanExecute(null))
+                    ViewModel.DeleteSelectedCommand.Execute(null);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Tab && ViewModel.SelectedNode is not { IsEditingName: true })
+            {
+                var isOutdent = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+                var command = isOutdent ? ViewModel.OutdentSelectedCommand : ViewModel.IndentSelectedCommand;
+                if (command.CanExecute(null))
+                    command.Execute(null);
                 e.Handled = true;
             }
         }

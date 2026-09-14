@@ -39,7 +39,27 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isResourcesTabActive;
 
-    public const double RowHeight = 32;
+    [ObservableProperty]
+    private double _rowHeight = 32;
+
+    /// <summary>Height of the bar itself within its row; leaves a consistent margin above/below at either density.</summary>
+    public double BarHeight => RowHeight - 10;
+
+    [ObservableProperty]
+    private bool _isCompactDensity;
+
+    [RelayCommand]
+    private void ToggleDensity()
+    {
+        IsCompactDensity = !IsCompactDensity;
+        RowHeight = IsCompactDensity ? 24 : 32;
+    }
+
+    partial void OnRowHeightChanged(double value)
+    {
+        OnPropertyChanged(nameof(BarHeight));
+        RecomputeLayout();
+    }
 
     public double CanvasWidth => Timeline.TotalWidth;
 
@@ -53,6 +73,17 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void ToggleTheme() => IsDarkTheme = !IsDarkTheme;
+
+    partial void OnIsDarkThemeChanged(bool value)
+    {
+        // TaskNodeViewModel.BarColorHex falls back to a priority-based default color that's
+        // tuned differently per theme - flip the static flag it reads, then tell every existing
+        // node to re-pull it (RaiseDisplayChanged already raises BarColorHex) since toggling the
+        // theme doesn't otherwise touch task data or trigger a tree rebuild.
+        TaskNodeViewModel.IsDarkTheme = value;
+        foreach (var node in VisibleRows)
+            node.RaiseDisplayChanged();
+    }
 
     [ObservableProperty]
     private TaskNodeViewModel? _selectedNode;
@@ -266,6 +297,8 @@ public sealed partial class MainViewModel : ObservableObject
         foreach (var root in RootNodes)
             ComputeEffectiveDates(root);
 
+        var today = DateOnly.FromDateTime(DateTime.Today);
+
         for (var i = 0; i < VisibleRows.Count; i++)
         {
             var node = VisibleRows[i];
@@ -275,6 +308,7 @@ public sealed partial class MainViewModel : ObservableObject
             node.BarWidth = node.Task.IsMilestone
                 ? 0
                 : Math.Max(node.EffectiveEndDate.DayNumber - node.EffectiveStartDate.DayNumber, 1) * Timeline.DayWidth;
+            node.IsOverdue = node.EffectiveEndDate < today && node.Task.ProgressPercent < 100;
         }
 
         RebuildDependencyLines();

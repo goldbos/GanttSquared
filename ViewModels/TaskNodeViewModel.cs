@@ -42,10 +42,11 @@ public sealed partial class TaskNodeViewModel : ObservableObject
     private double _rowTop;
 
     [ObservableProperty]
-    private double _progressWidth;
-
-    [ObservableProperty]
     private bool _isAlternateRow;
+
+    /// <summary>True when the effective end date is in the past and the task isn't 100% complete; set by MainViewModel.RecomputeLayout.</summary>
+    [ObservableProperty]
+    private bool _isOverdue;
 
     [ObservableProperty]
     private bool _isEditingName;
@@ -74,6 +75,13 @@ public sealed partial class TaskNodeViewModel : ObservableObject
         ? EffectiveStartDate.ToString("MMM d")
         : $"{EffectiveStartDate:MMM d} - {EffectiveEndDate:MMM d}";
 
+    /// <summary>
+    /// Set by MainWindow whenever the theme toggles; every existing node then has
+    /// RaiseDisplayChanged() called on it so BarColorHex (and its default-priority-color
+    /// branch below) picks up the new theme immediately without waiting for a data reload.
+    /// </summary>
+    public static bool IsDarkTheme { get; set; } = true;
+
     public string BarColorHex => Task.Color ?? DefaultColorFor(Task.Priority);
 
     public bool IsExpanded
@@ -87,9 +95,6 @@ public sealed partial class TaskNodeViewModel : ObservableObject
             OnPropertyChanged();
         }
     }
-
-    partial void OnBarWidthChanged(double value) =>
-        ProgressWidth = value * Task.ProgressPercent / 100.0;
 
     public void BeginRename()
     {
@@ -106,12 +111,23 @@ public sealed partial class TaskNodeViewModel : ObservableObject
         OnPropertyChanged(nameof(BarColorHex));
     }
 
-    private static string DefaultColorFor(PriorityLevel priority) => priority switch
-    {
-        PriorityLevel.Low => "#FF6B7280",
-        PriorityLevel.Medium => "#FF3B82F6",
-        PriorityLevel.High => "#FFF4B740",
-        PriorityLevel.Critical => "#FFEF4444",
-        _ => "#FF3B82F6"
-    };
+    // Dark-theme variants are a notch lighter/more saturated than the light-theme ones since
+    // they sit on a near-black canvas, where the light-theme colors read as dull/muddy.
+    private static string DefaultColorFor(PriorityLevel priority) => IsDarkTheme
+        ? priority switch
+        {
+            PriorityLevel.Low => "#FF8B95A5",
+            PriorityLevel.Medium => "#FF60A5FA",
+            PriorityLevel.High => "#FFFBBF24",
+            PriorityLevel.Critical => "#FFF87171",
+            _ => "#FF60A5FA"
+        }
+        : priority switch
+        {
+            PriorityLevel.Low => "#FF6B7280",
+            PriorityLevel.Medium => "#FF3B82F6",
+            PriorityLevel.High => "#FFF4B740",
+            PriorityLevel.Critical => "#FFEF4444",
+            _ => "#FF3B82F6"
+        };
 }

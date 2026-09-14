@@ -12,6 +12,9 @@
         <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewProjectCommand}"/>
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveProjectCommand}"/>
         <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenProjectCommand}"/>
+        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}"/>
+        <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}"/>
+        <KeyBinding Key="Z" Modifiers="Control+Shift" Command="{Binding RedoCommand}"/>
     </Window.InputBindings>
 
     <Window.Resources>
@@ -22,6 +25,7 @@
         <conv:DepthToIndentConverter x:Key="DepthToIndent"/>
         <conv:DoubleToLeftMarginConverter x:Key="DoubleToLeftMargin"/>
         <conv:ExpandGlyphConverter x:Key="ExpandGlyph"/>
+        <conv:AllTrueToVisibilityConverter x:Key="AllTrueToVisibility"/>
         <!--
           Theme toggle: MainWindow.xaml.cs's ToggleTheme mutates each of these SolidColorBrush
           instances' own Color property rather than swapping which resource a key points to.
@@ -56,6 +60,9 @@
         <SolidColorBrush x:Key="MutedTextBrush" Color="#FF9AA0AC" po:Freeze="False"/>
         <SolidColorBrush x:Key="AccentBrush" Color="#FF3B82F6"/>
         <SolidColorBrush x:Key="RowAltBrush" Color="#FF212227" po:Freeze="False"/>
+        <!-- Dependency link lines: lighter so they stand out against the near-black dark canvas, darker so they read against the light one. -->
+        <SolidColorBrush x:Key="LinkLineBrush" Color="#FF8B94A6" po:Freeze="False"/>
+        <SolidColorBrush x:Key="OverdueBrush" Color="#FFEF4444"/>
 
         <Style x:Key="RailButton" TargetType="Button">
             <Setter Property="Width" Value="36"/>
@@ -331,7 +338,7 @@
         </Style>
 
         <DataTemplate x:Key="TaskRowTemplate" DataType="{x:Type vm:TaskNodeViewModel}">
-            <Grid Height="32">
+            <Grid Height="{Binding DataContext.RowHeight, RelativeSource={RelativeSource AncestorType=Window}}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="18"/>
@@ -442,7 +449,8 @@
 
         <!-- Alternating row background plus a full-width bottom divider, painted behind the Gantt bars and aligned to the same VisibleRows order -->
         <DataTemplate x:Key="CanvasRowStripeTemplate" DataType="{x:Type vm:TaskNodeViewModel}">
-            <Grid Width="{Binding DataContext.CanvasWidth, RelativeSource={RelativeSource AncestorType=Window}}" Height="32">
+            <Grid Width="{Binding DataContext.CanvasWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                  Height="{Binding DataContext.RowHeight, RelativeSource={RelativeSource AncestorType=Window}}">
                 <Rectangle>
                     <Rectangle.Style>
                         <Style TargetType="Rectangle">
@@ -463,25 +471,63 @@
              mouse-down/move/up in code-behind so it can distinguish a plain click (select) from
              a drag starting in its middle (move) or within ~6px of an edge (resize). -->
         <DataTemplate x:Key="GanttBarTemplate" DataType="{x:Type vm:TaskNodeViewModel}">
-            <Grid x:Name="BarRoot" Height="32" Background="Transparent" ToolTip="{Binding Name}"
+            <Grid x:Name="BarRoot" Height="{Binding DataContext.RowHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                  Background="Transparent" ToolTip="{Binding Name}"
                   MouseLeftButtonDown="Bar_MouseLeftButtonDown"
                   MouseMove="Bar_MouseMove"
                   MouseLeftButtonUp="Bar_MouseLeftButtonUp">
-                <!-- Full span, solid dimmed color ("remaining") -->
-                <Border Height="22" CornerRadius="4" VerticalAlignment="Center" HorizontalAlignment="Left"
-                        Width="{Binding BarWidth}" Background="{Binding BarColorHex, Converter={StaticResource HexToBrush}, ConverterParameter=0.55}"
+                <!-- Full span, solid color. Progress % is still tracked on the task (shown in the
+                     Properties panel and, on hover, a small badge above the bar) but is no longer
+                     rendered as a fill split on the bar itself. An overdue task (past its end date
+                     and not 100% complete) gets a red outline. -->
+                <Border Height="{Binding DataContext.BarHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                        CornerRadius="4" VerticalAlignment="Center" HorizontalAlignment="Left"
+                        Width="{Binding BarWidth}" Background="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
                         IsHitTestVisible="False"
-                        Visibility="{Binding IsMilestone, Converter={StaticResource InverseBoolToVisibility}}"/>
-                <!-- Progress span, solid full-brightness color ("completed") -->
-                <Border Height="22" CornerRadius="4" VerticalAlignment="Center" HorizontalAlignment="Left"
-                        Width="{Binding ProgressWidth}" Background="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
-                        IsHitTestVisible="False"
-                        Visibility="{Binding IsMilestone, Converter={StaticResource InverseBoolToVisibility}}"/>
+                        Visibility="{Binding IsMilestone, Converter={StaticResource InverseBoolToVisibility}}">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsOverdue}" Value="True">
+                                    <Setter Property="BorderThickness" Value="1.5"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource OverdueBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
                 <Path Width="15" Height="15" Stretch="Uniform" Margin="-7,0,0,0" HorizontalAlignment="Left"
                       Data="M 7.5,0 L 15,7.5 L 7.5,15 L 0,7.5 Z"
                       Fill="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
                       IsHitTestVisible="False"
-                      Visibility="{Binding IsMilestone, Converter={StaticResource BoolToVisibility}}"/>
+                      Visibility="{Binding IsMilestone, Converter={StaticResource BoolToVisibility}}">
+                    <Path.Style>
+                        <Style TargetType="Path">
+                            <Setter Property="StrokeThickness" Value="0"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsOverdue}" Value="True">
+                                    <Setter Property="StrokeThickness" Value="1.5"/>
+                                    <Setter Property="Stroke" Value="{DynamicResource OverdueBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Path.Style>
+                </Path>
+
+                <!-- Progress % badge: hover-only, sits just above the bar's left edge. -->
+                <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4,-20,0,0"
+                        Background="{DynamicResource PanelAltBrush}" BorderBrush="{DynamicResource BorderBrush2}"
+                        BorderThickness="1" CornerRadius="3" Padding="5,1" IsHitTestVisible="False">
+                    <Border.Visibility>
+                        <MultiBinding Converter="{StaticResource AllTrueToVisibility}">
+                            <Binding Path="IsMouseOver" ElementName="BarRoot"/>
+                            <Binding Path="IsMilestone" Converter="{StaticResource InverseBool}"/>
+                        </MultiBinding>
+                    </Border.Visibility>
+                    <TextBlock Text="{Binding Task.ProgressPercent, StringFormat={}{0}%}"
+                               Foreground="{DynamicResource TextBrush}" FontSize="10"/>
+                </Border>
 
                 <!-- Dependency-link handle: hover-only, sits just past the bar's right edge; dragging from it onto another bar creates a link. -->
                 <Ellipse Width="10" Height="10" Fill="{StaticResource AccentBrush}" Stroke="White" StrokeThickness="1"
@@ -521,8 +567,8 @@
         <!-- Dependency connector: elbow path plus arrowhead -->
         <DataTemplate x:Key="DependencyLineTemplate" DataType="{x:Type vm:DependencyLineViewModel}">
             <Canvas>
-                <Path Data="{Binding PathData}" Stroke="#FF5B6472" StrokeThickness="1.4"/>
-                <Polygon Points="{Binding ArrowPoints}" Fill="#FF5B6472"/>
+                <Path Data="{Binding PathData}" Stroke="{DynamicResource LinkLineBrush}" StrokeThickness="1.4"/>
+                <Polygon Points="{Binding ArrowPoints}" Fill="{DynamicResource LinkLineBrush}"/>
             </Canvas>
         </DataTemplate>
 
@@ -652,6 +698,20 @@
                                 </Path.Style>
                             </Path>
                         </Grid>
+                    </Button>
+                    <Button Style="{StaticResource RailButton}" Command="{Binding ToggleDensityCommand}" ToolTip="Toggle Row Density (Compact/Comfortable)">
+                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.6"
+                              Data="M 0,2 L 14,2 M 0,7 L 14,7 M 0,12 L 14,12">
+                            <Path.Style>
+                                <Style TargetType="Path">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsCompactDensity}" Value="True">
+                                            <Setter Property="Data" Value="M 0,1 L 14,1 M 0,4.5 L 14,4.5 M 0,8 L 14,8 M 0,11.5 L 14,11.5 M 0,15 L 14,15"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Path.Style>
+                        </Path>
                     </Button>
                 </StackPanel>
             </DockPanel>

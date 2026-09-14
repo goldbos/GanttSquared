@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using System.Windows;
 using System.Windows.Data;
 
@@ -43,6 +44,16 @@ public sealed class ExpandGlyphConverter : IMultiValueConverter
 
         return values[1] is true ? "▾" : "▸";
     }
+
+    public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
+/// <summary>Visible only when every bound value is boolean true - e.g. "hovering AND not a milestone".</summary>
+public sealed class AllTrueToVisibilityConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture) =>
+        values.Length > 0 && values.All(v => v is true) ? Visibility.Visible : Visibility.Collapsed;
 
     public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
