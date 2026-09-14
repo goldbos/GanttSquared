@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -716,6 +717,43 @@ public sealed partial class MainViewModel : ObservableObject
         CurrentFilePath = dialog.FileName;
         IsDirty = false;
         OnPropertyChanged(nameof(UseWbsNumbering)); // ReplaceContents bypasses the UseWbsNumbering wrapper's setter
+        SetSelection(Array.Empty<TaskNodeViewModel>());
+        RebuildTree();
+        Timeline.FitToTasks(Project.Tasks);
+    }
+
+    [RelayCommand]
+    private void ImportGanttProject()
+    {
+        if (!ConfirmProceedPastUnsavedChanges("importing a GanttProject file"))
+            return;
+
+        var dialog = new OpenFileDialog
+        {
+            Filter = "GanttProject files (*.gan;*.xml)|*.gan;*.xml|All files (*.*)|*.*"
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        ProjectModel imported;
+        try
+        {
+            imported = GanttProjectImporter.Import(dialog.FileName);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or System.Xml.XmlException or IOException)
+        {
+            MessageBox.Show(
+                $"Could not import '{System.IO.Path.GetFileName(dialog.FileName)}':\n\n{ex.Message}",
+                "Import Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        Project.ReplaceContents(imported);
+        UndoRedo.Clear();
+        CurrentFilePath = null; // .gan isn't this app's native format - Save will prompt for a new .gantt.json location
+        IsDirty = true; // freshly imported, not yet saved in our own format
+        OnPropertyChanged(nameof(UseWbsNumbering));
         SetSelection(Array.Empty<TaskNodeViewModel>());
         RebuildTree();
         Timeline.FitToTasks(Project.Tasks);

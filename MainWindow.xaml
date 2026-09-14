@@ -573,6 +573,10 @@
                         <Path Width="14" Height="14" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4"
                               Data="M 1,4 L 1,12 L 13,12 L 13,5 L 7,5 L 6,3 L 2,3 Z"/>
                     </Button>
+                    <Button Style="{StaticResource RailButton}" Command="{Binding ImportGanttProjectCommand}" ToolTip="Import GanttProject File (.gan)...">
+                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4"
+                              Data="M 7,1 L 7,9 M 3.5,5.5 L 7,9 L 10.5,5.5 M 1,11 L 1,13 L 13,13 L 13,11"/>
+                    </Button>
                     <Button Style="{StaticResource RailButton}" Command="{Binding SaveProjectCommand}" ToolTip="Save Project (Ctrl+S)">
                         <Path Width="14" Height="14" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4"
                               Data="M 1,1 L 10,1 L 13,4 L 13,13 L 1,13 Z M 3,1 L 3,5 L 10,5 L 10,1 M 3,13 L 3,8 L 10,8 L 10,13"/>
