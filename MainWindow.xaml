@@ -282,6 +282,25 @@
             <Setter Property="Background" Value="#FF3A3B42"/>
         </Style>
 
+        <Style x:Key="TabButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Flattened task-list row (shared row order/height with the Gantt canvas so rows line up) -->
         <Style x:Key="RowToggleButton" TargetType="Button">
             <Setter Property="Width" Value="16"/>
@@ -599,6 +618,33 @@
                 <TextBlock DockPanel.Dock="Left" Text="{Binding WindowTitleText}" Foreground="{StaticResource TextBrush}"
                            FontSize="14" VerticalAlignment="Center"/>
 
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="28,0,0,0" VerticalAlignment="Center">
+                    <Button Content="Gantt" Command="{Binding ShowGanttTabCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsResourcesTabActive}" Value="False">
+                                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="Resources" Command="{Binding ShowResourcesTabCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsResourcesTabActive}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                     <CheckBox Content="WBS #" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center"
                               Margin="0,0,16,0" IsChecked="{Binding UseWbsNumbering}" ToolTip="Show WBS numbering (1, 1.1, 1.2, 2...) in the task list"/>
@@ -612,7 +658,8 @@
         </Border>
 
         <!-- Task list -->
-        <Border Grid.Column="1" Grid.Row="1" Background="{StaticResource PanelBrush}">
+        <Border Grid.Column="1" Grid.Row="1" Background="{StaticResource PanelBrush}"
+                Visibility="{Binding IsResourcesTabActive, Converter={StaticResource InverseBoolToVisibility}}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="28"/>
@@ -640,10 +687,12 @@
         </Border>
 
         <GridSplitter Grid.Column="2" Grid.Row="1" Width="5" HorizontalAlignment="Stretch"
-                      Background="{StaticResource BorderBrush2}"/>
+                      Background="{StaticResource BorderBrush2}"
+                      Visibility="{Binding IsResourcesTabActive, Converter={StaticResource InverseBoolToVisibility}}"/>
 
         <!-- Gantt canvas -->
-        <Border Grid.Column="3" Grid.Row="1" Background="#FF19191E">
+        <Border Grid.Column="3" Grid.Row="1" Background="#FF19191E"
+                Visibility="{Binding IsResourcesTabActive, Converter={StaticResource InverseBoolToVisibility}}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="28"/>
@@ -761,10 +810,12 @@
         </Border>
 
         <GridSplitter Grid.Column="4" Grid.Row="1" Width="5" HorizontalAlignment="Stretch"
-                      Background="{StaticResource BorderBrush2}"/>
+                      Background="{StaticResource BorderBrush2}"
+                      Visibility="{Binding IsResourcesTabActive, Converter={StaticResource InverseBoolToVisibility}}"/>
 
         <!-- Properties panel -->
         <Border Grid.Column="5" Grid.Row="1" Background="{StaticResource PanelBrush}"
+                Visibility="{Binding IsResourcesTabActive, Converter={StaticResource InverseBoolToVisibility}}"
                 BorderBrush="{StaticResource BorderBrush2}" BorderThickness="1,0,0,0">
             <Grid>
                 <TextBlock Text="Select a task to see its properties" Foreground="{StaticResource MutedTextBrush}"
@@ -833,6 +884,29 @@
                             <TextBlock Text="DESCRIPTION" Style="{StaticResource PanelLabel}"/>
                             <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
                                      AcceptsReturn="True" TextWrapping="Wrap" Height="70"/>
+
+                            <TextBlock Text="RESOURCES" Style="{StaticResource PanelLabel}"/>
+                            <ItemsControl ItemsSource="{Binding ResourceOptions}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsAssigned}"
+                                                  Foreground="{StaticResource TextBrush}" Margin="0,3"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="No resources yet - add some from the Resources tab." Foreground="{StaticResource MutedTextBrush}"
+                                       FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ResourceOptions.Count}" Value="0">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
 
                         <!-- Bulk-edit fields: only checked fields are applied to every selected task on Save -->
@@ -873,6 +947,74 @@
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
+        </Border>
+
+        <!-- Resources view: resource management + a simple allocation table (assigned task names per resource) -->
+        <Border Grid.Column="1" Grid.ColumnSpan="5" Grid.Row="1" Background="{StaticResource PanelBrush}"
+                Visibility="{Binding IsResourcesTabActive, Converter={StaticResource BoolToVisibility}}">
+            <DockPanel Margin="20">
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                    <TextBlock Text="Resources" Foreground="{StaticResource TextBrush}" FontSize="16" VerticalAlignment="Center"/>
+                    <Button DockPanel.Dock="Right" Content="+ Add Resource" Style="{StaticResource PrimaryButton}"
+                            HorizontalAlignment="Right" Command="{Binding AddResourceCommand}"/>
+                </DockPanel>
+
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="180"/>
+                        <ColumnDefinition Width="220"/>
+                        <ColumnDefinition Width="120"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="60"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="NAME" Style="{StaticResource PanelLabel}" Margin="8,0,0,0"/>
+                    <TextBlock Grid.Column="1" Text="EMAIL" Style="{StaticResource PanelLabel}"/>
+                    <TextBlock Grid.Column="2" Text="COLOR" Style="{StaticResource PanelLabel}"/>
+                    <TextBlock Grid.Column="3" Text="ASSIGNED TASKS" Style="{StaticResource PanelLabel}"/>
+                </Grid>
+
+                <TextBlock DockPanel.Dock="Top" Text="No resources yet. Click &quot;+ Add Resource&quot; to create one."
+                           Foreground="{StaticResource MutedTextBrush}" Margin="8,20,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Resources.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Resources}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180"/>
+                                        <ColumnDefinition Width="220"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="60"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.ColumnSpan="5" Background="{StaticResource PanelAltBrush}" CornerRadius="4"/>
+                                    <TextBox Grid.Column="0" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="4"/>
+                                    <TextBox Grid.Column="1" Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}" Margin="4"/>
+                                    <TextBox Grid.Column="2" Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}" Margin="4"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding AssignedTaskNames}" Foreground="{StaticResource MutedTextBrush}"
+                                               VerticalAlignment="Center" Margin="8,0" TextTrimming="CharacterEllipsis"/>
+                                    <Button Grid.Column="4" Content="Delete" Style="{StaticResource DangerButton}" Margin="4" Padding="6,4"
+                                            FontSize="10"
+                                            Command="{Binding DataContext.DeleteResourceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
         </Border>
     </Grid>
 </Window>

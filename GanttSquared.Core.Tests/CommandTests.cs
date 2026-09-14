@@ -8,6 +8,26 @@ public class CommandTests
     private static GanttTask MakeTask(string name, DateOnly start, DateOnly end) => new(name, start, end);
 
     [Fact]
+    public void RemoveResourceCommand_UndoRestoresResourceAndTaskAssignments()
+    {
+        var project = new ProjectModel();
+        var manager = new UndoRedoManager();
+        var task = MakeTask("A", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        project.AddTask(task);
+        var resource = new ProjectResource { Name = "Bob" };
+        manager.Do(new AddResourceCommand(project, resource));
+        task.AssignedResourceIds.Add(resource.Id);
+
+        manager.Do(new RemoveResourceCommand(project, resource.Id));
+        Assert.Empty(project.Resources);
+        Assert.Empty(task.AssignedResourceIds);
+
+        manager.Undo();
+        Assert.Single(project.Resources);
+        Assert.Contains(resource.Id, task.AssignedResourceIds);
+    }
+
+    [Fact]
     public void UndoRedo_AddTask_RoundTrips()
     {
         var project = new ProjectModel();

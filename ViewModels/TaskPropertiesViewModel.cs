@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GanttSquared.Core.Commands;
@@ -75,6 +76,9 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
 
     private List<GanttTask> _bulkTasks = new();
 
+    /// <summary>Every project resource as a checkbox option for the selected task, rebuilt on each LoadFrom.</summary>
+    public ObservableCollection<ResourceOptionViewModel> ResourceOptions { get; } = new();
+
     public IReadOnlyList<PriorityLevel> PriorityLevels { get; } = Enum.GetValues<PriorityLevel>();
 
     public event EventHandler? Applied;
@@ -104,6 +108,10 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
         ProgressPercent = task.ProgressPercent;
         Description = task.Description;
         SectionDisplay = task.ParentId is { } parentId ? _project.FindTask(parentId)?.Name ?? string.Empty : string.Empty;
+
+        ResourceOptions.Clear();
+        foreach (var resource in _project.Resources)
+            ResourceOptions.Add(new ResourceOptionViewModel(resource.Id, resource.Name, task.AssignedResourceIds.Contains(resource.Id)));
     }
 
     public void LoadForBulk(IReadOnlyList<GanttTask> tasks)
@@ -121,6 +129,8 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
         Priority = first?.Priority ?? PriorityLevel.Medium;
         Color = first?.Color;
         ProgressPercent = first?.ProgressPercent ?? 0;
+
+        ResourceOptions.Clear(); // resource assignment isn't part of bulk edit in this first pass
     }
 
     partial void OnStartDateChanged(DateTime value) =>
@@ -156,6 +166,10 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
         var newDescription = Description;
         var newStart = DateOnly.FromDateTime(StartDate);
         var newEnd = newIsMilestone ? newStart : DateOnly.FromDateTime(EndDate);
+        // Same reentrancy hazard as the fields above: each _undoRedo.Do() below triggers a
+        // reentrant LoadFrom(task) that rebuilds ResourceOptions from the task's still-
+        // unchanged AssignedResourceIds, discarding any checkbox toggles if read live later.
+        var newAssignedResourceIds = ResourceOptions.Where(r => r.IsAssigned).Select(r => r.ResourceId).ToHashSet();
 
         if (task.Name != newName)
             _undoRedo.Do(new EditTaskFieldCommand<string>(task, "name", t => t.Name, (t, v) => t.Name = v, newName));
@@ -177,6 +191,14 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
 
         if (task.StartDate != newStart || task.EndDate != newEnd)
             _undoRedo.Do(new RescheduleTaskCommand(_project, task.Id, newStart, newEnd));
+
+        // Not routed through undo/redo, consistent with resource field edits elsewhere -
+        // see ResourceRowViewModel.
+        if (!task.AssignedResourceIds.ToHashSet().SetEquals(newAssignedResourceIds))
+        {
+            task.AssignedResourceIds.Clear();
+            task.AssignedResourceIds.AddRange(newAssignedResourceIds);
+        }
 
         LoadFrom(task);
         Applied?.Invoke(this, EventArgs.Empty);

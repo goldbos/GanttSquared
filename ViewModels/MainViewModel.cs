@@ -33,6 +33,11 @@ public sealed partial class MainViewModel : ObservableObject
 
     public GanttTimelineViewModel Timeline { get; } = new();
 
+    public ObservableCollection<ResourceRowViewModel> Resources { get; } = new();
+
+    [ObservableProperty]
+    private bool _isResourcesTabActive;
+
     public const double RowHeight = 32;
 
     public double CanvasWidth => Timeline.TotalWidth;
@@ -162,6 +167,7 @@ public sealed partial class MainViewModel : ObservableObject
             RootNodes.Add(BuildNode(root));
 
         RefreshVisibleRows();
+        RebuildResources();
 
         var restored = selectedIds
             .Select(id => FindNode(RootNodes, id))
@@ -169,6 +175,30 @@ public sealed partial class MainViewModel : ObservableObject
             .Cast<TaskNodeViewModel>()
             .ToList();
         SetSelection(restored);
+    }
+
+    /// <summary>Rebuilds the Resources view's rows, including each one's assigned-task-names
+    /// summary - piggybacked onto the same rebuild points as the task tree (RebuildTree runs
+    /// on every undo-stack change, Open, and New) so resource assignment stays in sync
+    /// automatically without a separate tracking path.</summary>
+    private void RebuildResources()
+    {
+        var selectedResourceId = Resources.FirstOrDefault(r => r.IsSelected)?.Resource.Id;
+
+        Resources.Clear();
+        foreach (var resource in Project.Resources)
+        {
+            var assignedNames = Project.Tasks
+                .Where(t => t.AssignedResourceIds.Contains(resource.Id))
+                .Select(t => t.Name);
+
+            var row = new ResourceRowViewModel(resource)
+            {
+                AssignedTaskNames = string.Join(", ", assignedNames)
+            };
+            row.IsSelected = resource.Id == selectedResourceId;
+            Resources.Add(row);
+        }
     }
 
     /// <summary>Re-flattens RootNodes into VisibleRows respecting each group's IsExpanded, then recomputes canvas layout.</summary>
@@ -295,6 +325,22 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void SelectRow(TaskNodeViewModel? node) => SetSelection(node is null ? Enumerable.Empty<TaskNodeViewModel>() : new[] { node });
+
+    [RelayCommand]
+    private void ShowGanttTab() => IsResourcesTabActive = false;
+
+    [RelayCommand]
+    private void ShowResourcesTab() => IsResourcesTabActive = true;
+
+    [RelayCommand]
+    private void AddResource() => UndoRedo.Do(new AddResourceCommand(Project, new ProjectResource()));
+
+    [RelayCommand]
+    private void DeleteResource(ResourceRowViewModel? row)
+    {
+        if (row is not null)
+            UndoRedo.Do(new RemoveResourceCommand(Project, row.Resource.Id));
+    }
 
     [RelayCommand]
     private void ZoomIn() => Timeline.ZoomIn();
@@ -754,6 +800,14 @@ public sealed partial class MainViewModel : ObservableObject
         Project.AddDependency(new DependencyLink(beta.Id, qa.Id));
         Project.AddDependency(new DependencyLink(qa.Id, bugFixes.Id));
         Project.AddDependency(new DependencyLink(bugFixes.Id, launch.Id));
+
+        var alice = new ProjectResource { Name = "Alice", Email = "alice@example.com", Color = "#3478F6" };
+        var bob = new ProjectResource { Name = "Bob", Email = "bob@example.com", Color = "#F4B740" };
+        Project.AddResource(alice);
+        Project.AddResource(bob);
+        research.AssignedResourceIds.Add(alice.Id);
+        design.AssignedResourceIds.Add(alice.Id);
+        development.AssignedResourceIds.Add(bob.Id);
     }
 
     private GanttTask AddSampleTask(string name, DateOnly start, DateOnly end, Guid? parentId, PriorityLevel priority = PriorityLevel.Medium, bool milestone = false)
