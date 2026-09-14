@@ -84,19 +84,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Admin\\.nuget\\packages\\": {}
+    "C:\\Users\\goldbos\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Admin\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.csproj",
+      "projectUniqueName": "C:\\Users\\goldbos\\OneDrive - St Margaret's Berwick Grammar\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.csproj",
       "projectName": "GanttSquared",
-      "projectPath": "C:\\Users\\Admin\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.csproj",
-      "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Admin\\Documents\\Visual Studio\\GanttSquared\\obj\\",
+      "projectPath": "C:\\Users\\goldbos\\OneDrive - St Margaret's Berwick Grammar\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.csproj",
+      "packagesPath": "C:\\Users\\goldbos\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\goldbos\\OneDrive - St Margaret's Berwick Grammar\\Documents\\Visual Studio\\GanttSquared\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\goldbos\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
@@ -111,8 +111,8 @@
           "framework": "net10.0-windows7.0",
           "targetAlias": "net10.0-windows",
           "projectReferences": {
-            "C:\\Users\\Admin\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\GanttSquared.Core.csproj": {
-              "projectPath": "C:\\Users\\Admin\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\GanttSquared.Core.csproj"
+            "C:\\Users\\goldbos\\OneDrive - St Margaret's Berwick Grammar\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\GanttSquared.Core.csproj": {
+              "projectPath": "C:\\Users\\goldbos\\OneDrive - St Margaret's Berwick Grammar\\Documents\\Visual Studio\\GanttSquared\\GanttSquared.Core\\GanttSquared.Core.csproj"
             }
           }
         }
@@ -153,6 +153,9 @@
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
+          },
+          "Microsoft.WindowsDesktop.App.WindowsForms": {
+            "privateAssets": "none"
           },
           "Microsoft.WindowsDesktop.App.WPF": {
             "privateAssets": "none"
