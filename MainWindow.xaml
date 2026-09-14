@@ -7,6 +7,7 @@
         Background="#FF17181C">
 
     <Window.InputBindings>
+        <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewProjectCommand}"/>
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveProjectCommand}"/>
         <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenProjectCommand}"/>
     </Window.InputBindings>
@@ -347,13 +348,31 @@
                     </Path.Style>
                 </Path>
 
-                <TextBlock Grid.Column="2" Text="{Binding Name}" Margin="8,0,0,0"
-                           Foreground="#FFE8E9ED" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                           Visibility="{Binding IsEditingName, Converter={StaticResource InverseBoolToVisibility}}"/>
-                <TextBox x:Name="InlineRenameBox" Grid.Column="2" Margin="6,2,4,2" VerticalAlignment="Center"
-                         Text="{Binding EditingNameDraft, UpdateSourceTrigger=PropertyChanged}"
-                         Visibility="{Binding IsEditingName, Converter={StaticResource BoolToVisibility}}"
-                         KeyDown="InlineRenameBox_KeyDown" LostFocus="InlineRenameBox_LostFocus"/>
+                <Grid Grid.Column="2" Margin="8,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{Binding WbsCode}" Foreground="{StaticResource MutedTextBrush}"
+                               FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding WbsCode}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Grid.Column="1" Text="{Binding Name}"
+                               Foreground="#FFE8E9ED" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               Visibility="{Binding IsEditingName, Converter={StaticResource InverseBoolToVisibility}}"/>
+                    <TextBox x:Name="InlineRenameBox" Grid.Column="1" Margin="-2,2,4,2" VerticalAlignment="Center"
+                             Text="{Binding EditingNameDraft, UpdateSourceTrigger=PropertyChanged}"
+                             Visibility="{Binding IsEditingName, Converter={StaticResource BoolToVisibility}}"
+                             KeyDown="InlineRenameBox_KeyDown" LostFocus="InlineRenameBox_LostFocus"/>
+                </Grid>
                 <TextBlock Grid.Column="3" Text="{Binding DateRangeText}" Margin="10,0,10,0"
                            Foreground="#FF9AA0AC" FontSize="11" VerticalAlignment="Center"/>
 
@@ -527,7 +546,11 @@
                 BorderBrush="{StaticResource BorderBrush2}" BorderThickness="0,0,1,0">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top">
-                    <Button Style="{StaticResource RailButton}" Command="{Binding OpenProjectCommand}" ToolTip="Open Project...">
+                    <Button Style="{StaticResource RailButton}" Command="{Binding NewProjectCommand}" ToolTip="New Project (Ctrl+N)">
+                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4"
+                              Data="M 2,1 L 8,1 L 12,5 L 12,13 L 2,13 Z M 8,1 L 8,5 L 12,5 M 4,8 L 10,8 M 4,10 L 10,10"/>
+                    </Button>
+                    <Button Style="{StaticResource RailButton}" Command="{Binding OpenProjectCommand}" ToolTip="Open Project... (Ctrl+O)">
                         <Path Width="14" Height="14" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4"
                               Data="M 1,4 L 1,12 L 13,12 L 13,5 L 7,5 L 6,3 L 2,3 Z"/>
                     </Button>
@@ -577,6 +600,8 @@
                            FontSize="14" VerticalAlignment="Center"/>
 
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <CheckBox Content="WBS #" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center"
+                              Margin="0,0,16,0" IsChecked="{Binding UseWbsNumbering}" ToolTip="Show WBS numbering (1, 1.1, 1.2, 2...) in the task list"/>
                     <TextBox Width="200" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                              VerticalContentAlignment="Center"
                              KeyDown="SearchBox_KeyDown"/>

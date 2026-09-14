@@ -50,6 +50,10 @@ public sealed partial class TaskNodeViewModel : ObservableObject
     [ObservableProperty]
     private bool _isEditingName;
 
+    /// <summary>WBS code (e.g. "2.1.3"), set by MainViewModel while building the tree; empty when the project hasn't opted into WBS numbering.</summary>
+    [ObservableProperty]
+    private string _wbsCode = string.Empty;
+
     [ObservableProperty]
     private string _editingNameDraft = string.Empty;
 

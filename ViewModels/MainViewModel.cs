@@ -86,12 +86,31 @@ public sealed partial class MainViewModel : ObservableObject
     private DateOnly _dragOriginalStart;
     private DateOnly _dragOriginalEnd;
 
+    /// <summary>
+    /// Project.UseWbsNumbering wrapped as a bindable, live-toggleable setting: ProjectModel
+    /// isn't an ObservableObject, so flipping it directly wouldn't notify the UI, and every
+    /// node's WbsCode needs recomputing (via RebuildTree) the moment it changes anyway.
+    /// </summary>
+    public bool UseWbsNumbering
+    {
+        get => Project.UseWbsNumbering;
+        set
+        {
+            if (Project.UseWbsNumbering == value)
+                return;
+
+            Project.UseWbsNumbering = value;
+            OnPropertyChanged();
+            RebuildTree();
+        }
+    }
+
     public string WindowTitleText =>
         $"{Project.Name}{(IsDirty ? " *" : "")}{(CurrentFilePath is null ? " (unsaved)" : "")}";
 
     public MainViewModel()
     {
-        Project = new ProjectModel { Name = "Website Redesign Project" };
+        Project = new ProjectModel { Name = "Website Redesign Project", UseWbsNumbering = true };
         Properties = new TaskPropertiesViewModel(Project, UndoRedo);
         Properties.Applied += (_, _) => RebuildTree();
 
@@ -459,6 +478,8 @@ public sealed partial class MainViewModel : ObservableObject
     private TaskNodeViewModel BuildNode(GanttTask task)
     {
         var node = new TaskNodeViewModel(task);
+        if (Project.UseWbsNumbering)
+            node.WbsCode = Project.GetWbsCode(task.Id);
         foreach (var child in Project.GetChildren(task.Id))
             node.Children.Add(BuildNode(child));
         node.RaiseDisplayChanged();
@@ -548,6 +569,21 @@ public sealed partial class MainViewModel : ObservableObject
     private bool CanRedo() => UndoRedo.CanRedo;
 
     [RelayCommand]
+    private void NewProject()
+    {
+        if (!ConfirmProceedPastUnsavedChanges("starting a new project"))
+            return;
+
+        Project.ReplaceContents(new ProjectModel { Name = "Untitled Project" });
+        UndoRedo.Clear();
+        CurrentFilePath = null;
+        IsDirty = false;
+        SetSelection(Array.Empty<TaskNodeViewModel>());
+        OnPropertyChanged(nameof(UseWbsNumbering)); // ReplaceContents bypasses the UseWbsNumbering wrapper's setter
+        RebuildTree();
+    }
+
+    [RelayCommand]
     private void SaveProject()
     {
         if (CurrentFilePath is null)
@@ -597,6 +633,7 @@ public sealed partial class MainViewModel : ObservableObject
         UndoRedo.Clear();
         CurrentFilePath = dialog.FileName;
         IsDirty = false;
+        OnPropertyChanged(nameof(UseWbsNumbering)); // ReplaceContents bypasses the UseWbsNumbering wrapper's setter
         SetSelection(Array.Empty<TaskNodeViewModel>());
         RebuildTree();
         Timeline.FitToTasks(Project.Tasks);
