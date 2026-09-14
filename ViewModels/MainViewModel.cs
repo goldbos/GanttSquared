@@ -510,9 +510,23 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(HasAnySelection))]
     private void IndentSelected()
     {
-        var commands = SelectedNodes.Select(n => (IUndoableCommand)new IndentTaskCommand(Project, n.Task.Id)).ToList();
+        // IndentTaskCommand.Execute() throws if a task has no preceding sibling to become its
+        // new parent - filter those out up front instead of letting CompositeCommand.Execute()
+        // hit the first one and throw uncaught (there's no preceding sibling for a task that's
+        // already first in its list, e.g. the very first root task).
+        var commands = SelectedNodes
+            .Where(CanIndent)
+            .Select(n => (IUndoableCommand)new IndentTaskCommand(Project, n.Task.Id))
+            .ToList();
         if (commands.Count > 0)
             UndoRedo.Do(new CompositeCommand(commands, "Indent tasks"));
+    }
+
+    private bool CanIndent(TaskNodeViewModel node)
+    {
+        var siblings = Project.GetChildren(node.Task.ParentId).OrderBy(t => t.OrderIndex).ToList();
+        var idx = siblings.FindIndex(t => t.Id == node.Task.Id);
+        return idx > 0;
     }
 
     [RelayCommand(CanExecute = nameof(HasAnySelection))]

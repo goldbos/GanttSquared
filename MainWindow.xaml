@@ -226,6 +226,34 @@
             <Setter Property="CalendarButtonStyle" Value="{StaticResource DarkCalendarButtonStyle}"/>
         </Style>
 
+        <!--
+          DatePickerTextBox (the inline editable field, not the popup) has its own default
+          template with a hardcoded light background unrelated to the outer DatePicker's
+          Background setter - same root cause as the calendar day buttons above, just for the
+          text field instead of the popup. Only Foreground inherits down into it, so the date
+          text itself was rendering light-on-light.
+        -->
+        <Style TargetType="{x:Type DatePickerTextBox}">
+            <Setter Property="Background" Value="#FF2A2B32"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type DatePickerTextBox}">
+                        <Border Background="{TemplateBinding Background}" BorderThickness="0">
+                            <TextBox x:Name="PART_TextBox"
+                                     Text="{Binding Path=Text, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                     Background="Transparent"
+                                     Foreground="{TemplateBinding Foreground}"
+                                     BorderThickness="0"
+                                     CaretBrush="{StaticResource TextBrush}"
+                                     Padding="6,5"
+                                     VerticalContentAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style TargetType="DatePicker">
             <Setter Property="Background" Value="#FF2A2B32"/>
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
