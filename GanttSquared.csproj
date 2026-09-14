@@ -17,6 +17,17 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
   </ItemGroup>
 
+  <!--
+    Only System.Windows.Forms.ColorDialog is needed (there's no WPF-native color picker), always
+    referenced by its full name in code. UseWindowsForms=true would be the usual way to pull this
+    in, but it also adds global implicit usings for System.Windows.Forms/System.Drawing, which
+    collide with WPF's own Application/Point/MouseEventArgs/KeyEventArgs/DragEventArgs everywhere
+    in this project. FrameworkReference gets the assembly without that side effect.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>

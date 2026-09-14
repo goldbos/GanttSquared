@@ -4,6 +4,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using GanttSquared.ViewModels;
+using WinFormsColorDialog = System.Windows.Forms.ColorDialog;
+using DrawingColor = System.Drawing.Color;
 
 namespace GanttSquared
 {
@@ -505,6 +507,37 @@ namespace GanttSquared
         {
             if (e.Key == Key.Enter && ViewModel.SearchCommand.CanExecute(null))
                 ViewModel.SearchCommand.Execute(null);
+        }
+
+        // There's no WPF-native color picker, hence the WinForms dialog (see the
+        // FrameworkReference comment in GanttSquared.csproj for why it's referenced that way
+        // instead of via UseWindowsForms). Works for both the single-task and bulk-edit color
+        // fields since both bind to the same TaskPropertiesViewModel.Color property - the swatch
+        // that triggers this just needs its DataContext to already be that view model.
+        private void ColorSwatch_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not FrameworkElement { DataContext: TaskPropertiesViewModel properties })
+                return;
+
+            using var dialog = new WinFormsColorDialog { FullOpen = true };
+            if (!string.IsNullOrWhiteSpace(properties.Color))
+            {
+                try
+                {
+                    var c = (Color)ColorConverter.ConvertFromString(properties.Color);
+                    dialog.Color = DrawingColor.FromArgb(c.R, c.G, c.B);
+                }
+                catch (FormatException)
+                {
+                    // Malformed hex already in the field; just open the picker with its default.
+                }
+            }
+
+            if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                return;
+
+            var picked = dialog.Color;
+            properties.Color = $"#{picked.R:X2}{picked.G:X2}{picked.B:X2}";
         }
     }
 }

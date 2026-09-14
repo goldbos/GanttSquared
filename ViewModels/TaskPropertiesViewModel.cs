@@ -181,7 +181,20 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
             _undoRedo.Do(new EditTaskFieldCommand<int>(task, "progress", t => t.ProgressPercent, (t, v) => t.ProgressPercent = v, newProgress));
 
         if (task.Color != newColor)
-            _undoRedo.Do(new EditTaskFieldCommand<string?>(task, "color", t => t.Color, (t, v) => t.Color = v, newColor));
+        {
+            // A parent's color cascades to its whole subtree, so indented children visually
+            // follow their section rather than keeping whatever color they had (or the default).
+            // Bundled into one CompositeCommand so the entire cascade undoes as a single step.
+            var descendants = _project.GetDescendants(task.Id).ToList();
+            IUndoableCommand colorChange = descendants.Count == 0
+                ? new EditTaskFieldCommand<string?>(task, "color", t => t.Color, (t, v) => t.Color = v, newColor)
+                : new CompositeCommand(
+                    new IUndoableCommand[] { new EditTaskFieldCommand<string?>(task, "color", t => t.Color, (t, v) => t.Color = v, newColor) }
+                        .Concat(descendants.Select(d => (IUndoableCommand)new EditTaskFieldCommand<string?>(d, "color", t => t.Color, (t, v) => t.Color = v, newColor))),
+                    $"Change color of '{task.Name}' and its subtasks");
+
+            _undoRedo.Do(colorChange);
+        }
 
         if (task.Description != newDescription)
             _undoRedo.Do(new EditTaskFieldCommand<string>(task, "description", t => t.Description, (t, v) => t.Description = v, newDescription));

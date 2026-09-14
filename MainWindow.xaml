@@ -5,7 +5,8 @@
         xmlns:conv="clr-namespace:GanttSquared.Converters"
         xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
         Title="GanttSquared" Height="720" Width="1280"
-        Background="#FF17181C">
+        Background="#FF17181C"
+        SnapsToDevicePixels="True" UseLayoutRounding="True">
 
     <Window.InputBindings>
         <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewProjectCommand}"/>
@@ -466,17 +467,16 @@
                   MouseLeftButtonDown="Bar_MouseLeftButtonDown"
                   MouseMove="Bar_MouseMove"
                   MouseLeftButtonUp="Bar_MouseLeftButtonUp">
+                <!-- Full span, solid dimmed color ("remaining") -->
                 <Border Height="22" CornerRadius="4" VerticalAlignment="Center" HorizontalAlignment="Left"
-                        Width="{Binding BarWidth}" Background="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
-                        Opacity="0.32" IsHitTestVisible="False"
+                        Width="{Binding BarWidth}" Background="{Binding BarColorHex, Converter={StaticResource HexToBrush}, ConverterParameter=0.55}"
+                        IsHitTestVisible="False"
                         Visibility="{Binding IsMilestone, Converter={StaticResource InverseBoolToVisibility}}"/>
+                <!-- Progress span, solid full-brightness color ("completed") -->
                 <Border Height="22" CornerRadius="4" VerticalAlignment="Center" HorizontalAlignment="Left"
                         Width="{Binding ProgressWidth}" Background="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
                         IsHitTestVisible="False"
                         Visibility="{Binding IsMilestone, Converter={StaticResource InverseBoolToVisibility}}"/>
-                <TextBlock Text="{Binding Name}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="White" FontSize="11"
-                           IsHitTestVisible="False"
-                           Visibility="{Binding IsMilestone, Converter={StaticResource InverseBoolToVisibility}}"/>
                 <Path Width="15" Height="15" Stretch="Uniform" Margin="-7,0,0,0" HorizontalAlignment="Left"
                       Data="M 7.5,0 L 15,7.5 L 7.5,15 L 0,7.5 Z"
                       Fill="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
@@ -919,7 +919,18 @@
                             <TextBox Text="{Binding SectionDisplay, Mode=OneWay}" IsReadOnly="True" Opacity="0.7"/>
 
                             <TextBlock Text="COLOR" Style="{StaticResource PanelLabel}"/>
-                            <TextBox Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}"/>
+                                <Border Grid.Column="1" Width="30" Height="30" Margin="6,0,0,0" CornerRadius="4"
+                                        Background="{Binding Color, Converter={StaticResource HexToBrush}}"
+                                        BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="1"
+                                        Cursor="Hand" ToolTip="Pick a color..."
+                                        MouseLeftButtonUp="ColorSwatch_MouseLeftButtonUp"/>
+                            </Grid>
 
                             <TextBlock Text="PRIORITY" Style="{StaticResource PanelLabel}"/>
                             <ComboBox ItemsSource="{Binding PriorityLevels}" SelectedItem="{Binding Priority}"/>
@@ -970,7 +981,18 @@
                                 <CheckBox IsChecked="{Binding BulkApplyColor}" VerticalAlignment="Center"/>
                                 <TextBlock Text="COLOR" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
                             </DockPanel>
-                            <TextBox Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding BulkApplyColor}"/>
+                            <Grid IsEnabled="{Binding BulkApplyColor}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}"/>
+                                <Border Grid.Column="1" Width="30" Height="30" Margin="6,0,0,0" CornerRadius="4"
+                                        Background="{Binding Color, Converter={StaticResource HexToBrush}}"
+                                        BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="1"
+                                        Cursor="Hand" ToolTip="Pick a color..."
+                                        MouseLeftButtonUp="ColorSwatch_MouseLeftButtonUp"/>
+                            </Grid>
 
                             <DockPanel Margin="0,12,0,4">
                                 <CheckBox IsChecked="{Binding BulkApplyProgress}" VerticalAlignment="Center"/>
