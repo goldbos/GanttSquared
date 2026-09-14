@@ -45,6 +45,15 @@ public sealed partial class MainViewModel : ObservableObject
 
     public double CanvasHeight => Math.Max(1, VisibleRows.Count * RowHeight);
 
+    // The actual repaint (mutating each theme brush's Color) is a View concern and lives in
+    // MainWindow's code-behind, which observes this via PropertyChanged - keeping WPF Brush/
+    // Resources objects out of the ViewModel.
+    [ObservableProperty]
+    private bool _isDarkTheme = true;
+
+    [RelayCommand]
+    private void ToggleTheme() => IsDarkTheme = !IsDarkTheme;
+
     [ObservableProperty]
     private TaskNodeViewModel? _selectedNode;
 

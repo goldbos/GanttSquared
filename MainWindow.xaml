@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:GanttSquared.ViewModels"
         xmlns:conv="clr-namespace:GanttSquared.Converters"
+        xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
         Title="GanttSquared" Height="720" Width="1280"
         Background="#FF17181C">
 
@@ -20,10 +21,21 @@
         <conv:DepthToIndentConverter x:Key="DepthToIndent"/>
         <conv:DoubleToLeftMarginConverter x:Key="DoubleToLeftMargin"/>
         <conv:ExpandGlyphConverter x:Key="ExpandGlyph"/>
-        <SolidColorBrush x:Key="PanelBrush" Color="#FF1E1F24"/>
-        <SolidColorBrush x:Key="PanelAltBrush" Color="#FF24252B"/>
-        <SolidColorBrush x:Key="BorderBrush2" Color="#FF34353D"/>
-        <SolidColorBrush x:Key="TextBrush" Color="#FFE8E9ED"/>
+        <!--
+          Theme toggle: MainWindow.xaml.cs's ToggleTheme mutates each of these SolidColorBrush
+          instances' own Color property rather than swapping which resource a key points to.
+          Every {StaticResource X} reference below got its brush INSTANCE once at load time and
+          keeps that same reference forever, but SolidColorBrush.Color is itself a dependency
+          property - changing it repaints everything using that brush immediately, with no need
+          to convert this whole file to DynamicResource.
+        -->
+        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#FF17181C" po:Freeze="False"/>
+        <SolidColorBrush x:Key="PanelBrush" Color="#FF1E1F24" po:Freeze="False"/>
+        <SolidColorBrush x:Key="PanelAltBrush" Color="#FF24252B" po:Freeze="False"/>
+        <SolidColorBrush x:Key="BorderBrush2" Color="#FF34353D" po:Freeze="False"/>
+        <SolidColorBrush x:Key="TextBrush" Color="#FFE8E9ED" po:Freeze="False"/>
+        <SolidColorBrush x:Key="FieldBackgroundBrush" Color="#FF2A2B32" po:Freeze="False"/>
+        <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="#FF19191E" po:Freeze="False"/>
 
         <!--
           The default TreeViewItem template (untouched below - we only set Background/
@@ -40,9 +52,9 @@
         <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#FFE8E9ED"/>
         <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#FF34353D"/>
         <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#FFE8E9ED"/>
-        <SolidColorBrush x:Key="MutedTextBrush" Color="#FF9AA0AC"/>
+        <SolidColorBrush x:Key="MutedTextBrush" Color="#FF9AA0AC" po:Freeze="False"/>
         <SolidColorBrush x:Key="AccentBrush" Color="#FF3B82F6"/>
-        <SolidColorBrush x:Key="RowAltBrush" Color="#FF212227"/>
+        <SolidColorBrush x:Key="RowAltBrush" Color="#FF212227" po:Freeze="False"/>
 
         <Style x:Key="RailButton" TargetType="Button">
             <Setter Property="Width" Value="36"/>
@@ -50,7 +62,7 @@
             <Setter Property="Margin" Value="6,3"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -72,22 +84,22 @@
         </Style>
 
         <Style x:Key="PanelLabel" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Margin" Value="0,10,0,4"/>
         </Style>
 
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#FF2A2B32"/>
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush2}"/>
+            <Setter Property="Background" Value="{DynamicResource FieldBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush2}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="6,5"/>
-            <Setter Property="CaretBrush" Value="{StaticResource TextBrush}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextBrush}"/>
         </Style>
 
         <Style x:Key="DarkComboBoxItem" TargetType="ComboBoxItem">
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -106,8 +118,8 @@
         </Style>
 
         <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="#FF2A2B32"/>
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource FieldBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Padding" Value="6,5"/>
             <Setter Property="ItemContainerStyle" Value="{StaticResource DarkComboBoxItem}"/>
             <Setter Property="Template">
@@ -115,7 +127,7 @@
                     <ControlTemplate TargetType="ComboBox">
                         <Grid>
                             <ToggleButton x:Name="Toggle" Background="{TemplateBinding Background}"
-                                          BorderBrush="{StaticResource BorderBrush2}" BorderThickness="1"
+                                          BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="1"
                                           IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
                                           Focusable="False" ClickMode="Press">
                                 <ToggleButton.Template>
@@ -126,7 +138,7 @@
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="22"/>
                                                 </Grid.ColumnDefinitions>
-                                                <Path Grid.Column="1" Data="M 0,0 L 4,4 L 8,0" Stroke="{StaticResource MutedTextBrush}"
+                                                <Path Grid.Column="1" Data="M 0,0 L 4,4 L 8,0" Stroke="{DynamicResource MutedTextBrush}"
                                                       StrokeThickness="1.6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Grid>
                                         </Border>
@@ -141,13 +153,13 @@
                                                VerticalAlignment="Center" HorizontalAlignment="Left">
                                 <ContentPresenter.Resources>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                                     </Style>
                                 </ContentPresenter.Resources>
                             </ContentPresenter>
                             <Popup x:Name="Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
                                    AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
-                                <Border Background="{StaticResource PanelAltBrush}" BorderBrush="{StaticResource BorderBrush2}"
+                                <Border Background="{DynamicResource PanelAltBrush}" BorderBrush="{DynamicResource BorderBrush2}"
                                         BorderThickness="1" CornerRadius="4" MinWidth="{TemplateBinding ActualWidth}"
                                         SnapsToDevicePixels="True">
                                     <ItemsPresenter/>
@@ -167,7 +179,7 @@
           properties DatePicker/Calendar expose specifically for restyling those cells.
         -->
         <Style x:Key="DarkCalendarDayButtonStyle" TargetType="CalendarDayButton">
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -187,7 +199,7 @@
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                             <Trigger Property="IsBlackedOut" Value="True">
-                                <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
                                 <Setter Property="Opacity" Value="0.4"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
@@ -200,7 +212,7 @@
         </Style>
 
         <Style x:Key="DarkCalendarButtonStyle" TargetType="CalendarButton">
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -219,9 +231,9 @@
         </Style>
 
         <Style x:Key="DarkCalendarStyle" TargetType="Calendar">
-            <Setter Property="Background" Value="{StaticResource PanelAltBrush}"/>
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush2}"/>
+            <Setter Property="Background" Value="{DynamicResource PanelAltBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush2}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CalendarDayButtonStyle" Value="{StaticResource DarkCalendarDayButtonStyle}"/>
             <Setter Property="CalendarButtonStyle" Value="{StaticResource DarkCalendarButtonStyle}"/>
@@ -235,8 +247,8 @@
           text itself was rendering light-on-light.
         -->
         <Style TargetType="{x:Type DatePickerTextBox}">
-            <Setter Property="Background" Value="#FF2A2B32"/>
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource FieldBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type DatePickerTextBox}">
@@ -246,7 +258,7 @@
                                      Background="Transparent"
                                      Foreground="{TemplateBinding Foreground}"
                                      BorderThickness="0"
-                                     CaretBrush="{StaticResource TextBrush}"
+                                     CaretBrush="{DynamicResource TextBrush}"
                                      Padding="6,5"
                                      VerticalContentAlignment="Center"/>
                         </Border>
@@ -256,8 +268,8 @@
         </Style>
 
         <Style TargetType="DatePicker">
-            <Setter Property="Background" Value="#FF2A2B32"/>
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource FieldBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="CalendarStyle" Value="{StaticResource DarkCalendarStyle}"/>
         </Style>
 
@@ -284,7 +296,7 @@
 
         <Style x:Key="TabButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0,0,0,2"/>
             <Setter Property="Padding" Value="10,6"/>
@@ -331,7 +343,7 @@
                     <Button Style="{StaticResource RowToggleButton}"
                             Command="{Binding DataContext.ToggleExpandCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             CommandParameter="{Binding}">
-                        <TextBlock Foreground="{StaticResource MutedTextBrush}" FontSize="9">
+                        <TextBlock Foreground="{DynamicResource MutedTextBrush}" FontSize="9">
                             <TextBlock.Text>
                                 <MultiBinding Converter="{StaticResource ExpandGlyph}">
                                     <Binding Path="IsGroup"/>
@@ -372,7 +384,7 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="{Binding WbsCode}" Foreground="{StaticResource MutedTextBrush}"
+                    <TextBlock Grid.Column="0" Text="{Binding WbsCode}" Foreground="{DynamicResource MutedTextBrush}"
                                FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
@@ -385,7 +397,7 @@
                         </TextBlock.Style>
                     </TextBlock>
                     <TextBlock Grid.Column="1" Text="{Binding Name}"
-                               Foreground="#FFE8E9ED" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                Visibility="{Binding IsEditingName, Converter={StaticResource InverseBoolToVisibility}}"/>
                     <TextBox x:Name="InlineRenameBox" Grid.Column="1" Margin="-2,2,4,2" VerticalAlignment="Center"
                              Text="{Binding EditingNameDraft, UpdateSourceTrigger=PropertyChanged}"
@@ -393,17 +405,17 @@
                              KeyDown="InlineRenameBox_KeyDown" LostFocus="InlineRenameBox_LostFocus"/>
                 </Grid>
                 <TextBlock Grid.Column="3" Text="{Binding DateRangeText}" Margin="10,0,10,0"
-                           Foreground="#FF9AA0AC" FontSize="11" VerticalAlignment="Center"/>
+                           Foreground="{DynamicResource MutedTextBrush}" FontSize="11" VerticalAlignment="Center"/>
 
                 <Border Grid.Column="0" Grid.ColumnSpan="4" VerticalAlignment="Bottom" Height="1"
-                        Background="{StaticResource BorderBrush2}"/>
+                        Background="{DynamicResource BorderBrush2}"/>
             </Grid>
         </DataTemplate>
 
         <Style x:Key="TaskListBoxItemStyle" TargetType="ListBoxItem">
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -413,10 +425,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <DataTrigger Binding="{Binding IsAlternateRow}" Value="True">
-                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource RowAltBrush}"/>
+                                <Setter TargetName="Bg" Property="Background" Value="{DynamicResource RowAltBrush}"/>
                             </DataTrigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bg" Property="Background" Value="#FF2A2B32"/>
+                                <Setter TargetName="Bg" Property="Background" Value="{DynamicResource FieldBackgroundBrush}"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Bg" Property="Background" Value="{StaticResource AccentBrush}"/>
@@ -436,13 +448,13 @@
                             <Setter Property="Fill" Value="Transparent"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsAlternateRow}" Value="True">
-                                    <Setter Property="Fill" Value="#FF1C1D22"/>
+                                    <Setter Property="Fill" Value="{DynamicResource RowAltBrush}"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Rectangle.Style>
                 </Rectangle>
-                <Border VerticalAlignment="Bottom" Height="1" Background="{StaticResource BorderBrush2}"/>
+                <Border VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
             </Grid>
         </DataTemplate>
 
@@ -497,12 +509,12 @@
 
         <!-- Timeline header tick -->
         <DataTemplate x:Key="TimelineTickTemplate" DataType="{x:Type vm:TimelineTick}">
-            <TextBlock Text="{Binding Label}" Foreground="{StaticResource MutedTextBrush}" FontSize="10" Margin="4,10,0,0"/>
+            <TextBlock Text="{Binding Label}" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" Margin="4,10,0,0"/>
         </DataTemplate>
 
         <!-- Vertical gridline at each tick, spanning the full canvas height -->
         <DataTemplate x:Key="GridlineTemplate" DataType="{x:Type vm:TimelineTick}">
-            <Rectangle Width="1" Fill="{StaticResource BorderBrush2}" Opacity="0.6"
+            <Rectangle Width="1" Fill="{DynamicResource BorderBrush2}" Opacity="0.6"
                        Height="{Binding DataContext.CanvasHeight, RelativeSource={RelativeSource AncestorType=Window}}"/>
         </DataTemplate>
 
@@ -518,8 +530,8 @@
             <Setter Property="Width" Value="26"/>
             <Setter Property="Height" Value="22"/>
             <Setter Property="Margin" Value="4,0,0,0"/>
-            <Setter Property="Background" Value="#FF2A2B32"/>
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource FieldBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -561,65 +573,95 @@
         </Grid.RowDefinitions>
 
         <!-- Left icon rail -->
-        <Border Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" Background="{StaticResource PanelBrush}"
-                BorderBrush="{StaticResource BorderBrush2}" BorderThickness="0,0,1,0">
+        <Border Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" Background="{DynamicResource PanelBrush}"
+                BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,0,1,0">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top">
                     <Button Style="{StaticResource RailButton}" Command="{Binding NewProjectCommand}" ToolTip="New Project (Ctrl+N)">
-                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4"
+                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.4"
                               Data="M 2,1 L 8,1 L 12,5 L 12,13 L 2,13 Z M 8,1 L 8,5 L 12,5 M 4,8 L 10,8 M 4,10 L 10,10"/>
                     </Button>
                     <Button Style="{StaticResource RailButton}" Command="{Binding OpenProjectCommand}" ToolTip="Open Project... (Ctrl+O)">
-                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4"
+                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.4"
                               Data="M 1,4 L 1,12 L 13,12 L 13,5 L 7,5 L 6,3 L 2,3 Z"/>
                     </Button>
                     <Button Style="{StaticResource RailButton}" Command="{Binding ImportGanttProjectCommand}" ToolTip="Import GanttProject File (.gan)...">
-                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4"
+                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.4"
                               Data="M 7,1 L 7,9 M 3.5,5.5 L 7,9 L 10.5,5.5 M 1,11 L 1,13 L 13,13 L 13,11"/>
                     </Button>
                     <Button Style="{StaticResource RailButton}" Command="{Binding SaveProjectCommand}" ToolTip="Save Project (Ctrl+S)">
-                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4"
+                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.4"
                               Data="M 1,1 L 10,1 L 13,4 L 13,13 L 1,13 Z M 3,1 L 3,5 L 10,5 L 10,1 M 3,13 L 3,8 L 10,8 L 10,13"/>
                     </Button>
 
-                    <Border Height="1" Margin="8,6" Background="{StaticResource BorderBrush2}"/>
+                    <Border Height="1" Margin="8,6" Background="{DynamicResource BorderBrush2}"/>
 
                     <Button Style="{StaticResource RailButton}" Command="{Binding NewTaskCommand}" ToolTip="New Task (Ins)">
-                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="2"
+                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="2"
                               Data="M 7,0 L 7,14 M 0,7 L 14,7"/>
                     </Button>
                     <Button Style="{StaticResource RailButton}" Command="{Binding IndentSelectedCommand}" ToolTip="Indent (Tab)">
-                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="2"
+                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="2"
                               Data="M 0,2 L 10,2 M 0,7 L 6,7 M 8,4 L 12,7 L 8,10 M 0,12 L 10,12"/>
                     </Button>
                     <Button Style="{StaticResource RailButton}" Command="{Binding OutdentSelectedCommand}" ToolTip="Outdent (Shift+Tab)">
-                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="2"
+                        <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="2"
                               Data="M 0,2 L 10,2 M 4,7 L 10,7 M 6,4 L 2,7 L 6,10 M 0,12 L 10,12"/>
                     </Button>
                     <Button Style="{StaticResource RailButton}" Command="{Binding DeleteSelectedCommand}" ToolTip="Delete Task (Del)">
-                        <Path Width="13" Height="14" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="1.6"
+                        <Path Width="13" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.6"
                               Data="M 0,3 L 13,3 M 4,3 L 4,0 L 9,0 L 9,3 M 2,3 L 2.7,14 L 10.3,14 L 11,3"/>
                     </Button>
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom" VerticalAlignment="Bottom" Margin="0,0,0,8">
                     <Button Style="{StaticResource RailButton}" Command="{Binding RedoCommand}" ToolTip="Redo (Ctrl+Y)">
-                        <Path Width="15" Height="12" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="1.6"
+                        <Path Width="15" Height="12" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.6"
                               Data="M 1,3 C 6,-1 13,0 14,6 C 13,11 6,12 1,8 M 1,8 L 1,4 M 1,8 L 5,8"/>
                     </Button>
                     <Button Style="{StaticResource RailButton}" Command="{Binding UndoCommand}" ToolTip="Undo (Ctrl+Z)">
-                        <Path Width="15" Height="12" Stretch="Uniform" Stroke="{StaticResource TextBrush}" StrokeThickness="1.6"
+                        <Path Width="15" Height="12" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.6"
                               Data="M 14,3 C 9,-1 2,0 1,6 C 2,11 9,12 14,8 M 14,8 L 14,4 M 14,8 L 10,8"/>
+                    </Button>
+                    <Button Style="{StaticResource RailButton}" Command="{Binding ToggleThemeCommand}" ToolTip="Toggle Dark/Light Theme">
+                        <Grid>
+                            <!-- Sun: shown in dark mode - click to switch to light. -->
+                            <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.3"
+                                  Data="M 10,7 A 3,3 0 1 1 4,7 A 3,3 0 1 1 10,7 M 7,0.5 L 7,2 M 7,12 L 7,13.5 M 0.5,7 L 2,7 M 12,7 L 13.5,7 M 2.3,2.3 L 3.3,3.3 M 10.7,10.7 L 11.7,11.7 M 2.3,11.7 L 3.3,10.7 M 10.7,3.3 L 11.7,2.3">
+                                <Path.Style>
+                                    <Style TargetType="Path">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDarkTheme}" Value="False">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+                            <!-- Moon: shown in light mode - click to switch to dark. -->
+                            <Path Width="12" Height="12" Stretch="Uniform" Fill="{DynamicResource TextBrush}"
+                                  Data="M 9,1.5 A 5.5,5.5 0 1 0 9,12.5 A 4,4 0 1 1 9,1.5 Z">
+                                <Path.Style>
+                                    <Style TargetType="Path">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDarkTheme}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+                        </Grid>
                     </Button>
                 </StackPanel>
             </DockPanel>
         </Border>
 
         <!-- Top bar -->
-        <Border Grid.Column="1" Grid.ColumnSpan="5" Grid.Row="0" Background="{StaticResource PanelBrush}"
-                BorderBrush="{StaticResource BorderBrush2}" BorderThickness="0,0,0,1">
+        <Border Grid.Column="1" Grid.ColumnSpan="5" Grid.Row="0" Background="{DynamicResource PanelBrush}"
+                BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,0,0,1">
             <DockPanel Margin="12,0" VerticalAlignment="Center">
-                <TextBlock DockPanel.Dock="Left" Text="{Binding WindowTitleText}" Foreground="{StaticResource TextBrush}"
+                <TextBlock DockPanel.Dock="Left" Text="{Binding WindowTitleText}" Foreground="{DynamicResource TextBrush}"
                            FontSize="14" VerticalAlignment="Center"/>
 
                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="28,0,0,0" VerticalAlignment="Center">
@@ -628,7 +670,7 @@
                             <Style TargetType="Button" BasedOn="{StaticResource TabButtonStyle}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsResourcesTabActive}" Value="False">
-                                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                                         <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -640,7 +682,7 @@
                             <Style TargetType="Button" BasedOn="{StaticResource TabButtonStyle}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsResourcesTabActive}" Value="True">
-                                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                                         <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -650,7 +692,7 @@
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <CheckBox Content="WBS #" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center"
+                    <CheckBox Content="WBS #" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center"
                               Margin="0,0,16,0" IsChecked="{Binding UseWbsNumbering}" ToolTip="Show WBS numbering (1, 1.1, 1.2, 2...) in the task list"/>
                     <TextBox Width="200" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                              VerticalContentAlignment="Center"
@@ -662,7 +704,7 @@
         </Border>
 
         <!-- Task list -->
-        <Border Grid.Column="1" Grid.Row="1" Background="{StaticResource PanelBrush}"
+        <Border Grid.Column="1" Grid.Row="1" Background="{DynamicResource PanelBrush}"
                 Visibility="{Binding IsResourcesTabActive, Converter={StaticResource InverseBoolToVisibility}}">
             <Grid>
                 <Grid.RowDefinitions>
@@ -677,7 +719,7 @@
                     <Button Content="Expand All" Style="{StaticResource ResetZoomButtonStyle}" Command="{Binding ExpandAllCommand}"/>
                     <Button Content="Collapse All" Style="{StaticResource ResetZoomButtonStyle}" Command="{Binding CollapseAllCommand}"/>
                 </StackPanel>
-                <Border Grid.Row="1" VerticalAlignment="Bottom" Height="1" Background="{StaticResource BorderBrush2}"/>
+                <Border Grid.Row="1" VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
 
                 <ScrollViewer x:Name="TaskListScroll" Grid.Row="2"
                               VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
@@ -691,11 +733,11 @@
         </Border>
 
         <GridSplitter Grid.Column="2" Grid.Row="1" Width="5" HorizontalAlignment="Stretch"
-                      Background="{StaticResource BorderBrush2}"
+                      Background="{DynamicResource BorderBrush2}"
                       Visibility="{Binding IsResourcesTabActive, Converter={StaticResource InverseBoolToVisibility}}"/>
 
         <!-- Gantt canvas -->
-        <Border Grid.Column="3" Grid.Row="1" Background="#FF19191E"
+        <Border Grid.Column="3" Grid.Row="1" Background="{DynamicResource CanvasBackgroundBrush}"
                 Visibility="{Binding IsResourcesTabActive, Converter={StaticResource InverseBoolToVisibility}}">
             <Grid>
                 <Grid.RowDefinitions>
@@ -713,8 +755,8 @@
                 </StackPanel>
 
                 <!-- Timeline header (horizontal scroll only, synced to the canvas body) -->
-                <Border Grid.Row="1" Background="{StaticResource PanelAltBrush}"
-                        BorderBrush="{StaticResource BorderBrush2}" BorderThickness="0,1,0,1">
+                <Border Grid.Row="1" Background="{DynamicResource PanelAltBrush}"
+                        BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,1,0,1">
                     <ScrollViewer x:Name="HeaderScroll" VerticalScrollBarVisibility="Disabled"
                                   HorizontalScrollBarVisibility="Hidden" IsHitTestVisible="False">
                         <ItemsControl ItemsSource="{Binding Timeline.Ticks}" ItemTemplate="{StaticResource TimelineTickTemplate}"
@@ -814,15 +856,15 @@
         </Border>
 
         <GridSplitter Grid.Column="4" Grid.Row="1" Width="5" HorizontalAlignment="Stretch"
-                      Background="{StaticResource BorderBrush2}"
+                      Background="{DynamicResource BorderBrush2}"
                       Visibility="{Binding IsResourcesTabActive, Converter={StaticResource InverseBoolToVisibility}}"/>
 
         <!-- Properties panel -->
-        <Border Grid.Column="5" Grid.Row="1" Background="{StaticResource PanelBrush}"
+        <Border Grid.Column="5" Grid.Row="1" Background="{DynamicResource PanelBrush}"
                 Visibility="{Binding IsResourcesTabActive, Converter={StaticResource InverseBoolToVisibility}}"
-                BorderBrush="{StaticResource BorderBrush2}" BorderThickness="1,0,0,0">
+                BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="1,0,0,0">
             <Grid>
-                <TextBlock Text="Select a task to see its properties" Foreground="{StaticResource MutedTextBrush}"
+                <TextBlock Text="Select a task to see its properties" Foreground="{DynamicResource MutedTextBrush}"
                            HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"
                            Width="220">
                     <TextBlock.Style>
@@ -840,7 +882,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14,10"
                               Visibility="{Binding Properties.HasSelection, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel DataContext="{Binding Properties}">
-                        <TextBlock Foreground="{StaticResource TextBrush}" FontSize="14" Margin="0,0,0,8">
+                        <TextBlock Foreground="{DynamicResource TextBrush}" FontSize="14" Margin="0,0,0,8">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Text" Value="Task Properties"/>
@@ -859,7 +901,7 @@
                             <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
 
                             <DockPanel Margin="0,12,0,0">
-                                <TextBlock Text="Milestone" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Milestone" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
                                 <CheckBox IsChecked="{Binding IsMilestone}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                             </DockPanel>
 
@@ -894,11 +936,11 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <CheckBox Content="{Binding Name}" IsChecked="{Binding IsAssigned}"
-                                                  Foreground="{StaticResource TextBrush}" Margin="0,3"/>
+                                                  Foreground="{DynamicResource TextBrush}" Margin="0,3"/>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                            <TextBlock Text="No resources yet - add some from the Resources tab." Foreground="{StaticResource MutedTextBrush}"
+                            <TextBlock Text="No resources yet - add some from the Resources tab." Foreground="{DynamicResource MutedTextBrush}"
                                        FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
@@ -915,24 +957,24 @@
 
                         <!-- Bulk-edit fields: only checked fields are applied to every selected task on Save -->
                         <StackPanel Visibility="{Binding IsBulkMode, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="Check a field to apply it to every selected task." Foreground="{StaticResource MutedTextBrush}"
+                            <TextBlock Text="Check a field to apply it to every selected task." Foreground="{DynamicResource MutedTextBrush}"
                                        FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"/>
 
                             <DockPanel Margin="0,12,0,4">
                                 <CheckBox IsChecked="{Binding BulkApplyPriority}" VerticalAlignment="Center"/>
-                                <TextBlock Text="PRIORITY" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="PRIORITY" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
                             </DockPanel>
                             <ComboBox ItemsSource="{Binding PriorityLevels}" SelectedItem="{Binding Priority}" IsEnabled="{Binding BulkApplyPriority}"/>
 
                             <DockPanel Margin="0,12,0,4">
                                 <CheckBox IsChecked="{Binding BulkApplyColor}" VerticalAlignment="Center"/>
-                                <TextBlock Text="COLOR" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="COLOR" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
                             </DockPanel>
                             <TextBox Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding BulkApplyColor}"/>
 
                             <DockPanel Margin="0,12,0,4">
                                 <CheckBox IsChecked="{Binding BulkApplyProgress}" VerticalAlignment="Center"/>
-                                <TextBlock Text="PROGRESS (%)" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="PROGRESS (%)" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
                             </DockPanel>
                             <TextBox Text="{Binding ProgressPercent, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding BulkApplyProgress}"/>
                         </StackPanel>
@@ -954,11 +996,11 @@
         </Border>
 
         <!-- Resources view: resource management + a simple allocation table (assigned task names per resource) -->
-        <Border Grid.Column="1" Grid.ColumnSpan="5" Grid.Row="1" Background="{StaticResource PanelBrush}"
+        <Border Grid.Column="1" Grid.ColumnSpan="5" Grid.Row="1" Background="{DynamicResource PanelBrush}"
                 Visibility="{Binding IsResourcesTabActive, Converter={StaticResource BoolToVisibility}}">
             <DockPanel Margin="20">
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,14">
-                    <TextBlock Text="Resources" Foreground="{StaticResource TextBrush}" FontSize="16" VerticalAlignment="Center"/>
+                    <TextBlock Text="Resources" Foreground="{DynamicResource TextBrush}" FontSize="16" VerticalAlignment="Center"/>
                     <Button DockPanel.Dock="Right" Content="+ Add Resource" Style="{StaticResource PrimaryButton}"
                             HorizontalAlignment="Right" Command="{Binding AddResourceCommand}"/>
                 </DockPanel>
@@ -978,7 +1020,7 @@
                 </Grid>
 
                 <TextBlock DockPanel.Dock="Top" Text="No resources yet. Click &quot;+ Add Resource&quot; to create one."
-                           Foreground="{StaticResource MutedTextBrush}" Margin="8,20,0,0">
+                           Foreground="{DynamicResource MutedTextBrush}" Margin="8,20,0,0">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -1003,11 +1045,11 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="60"/>
                                     </Grid.ColumnDefinitions>
-                                    <Border Grid.ColumnSpan="5" Background="{StaticResource PanelAltBrush}" CornerRadius="4"/>
+                                    <Border Grid.ColumnSpan="5" Background="{DynamicResource PanelAltBrush}" CornerRadius="4"/>
                                     <TextBox Grid.Column="0" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="4"/>
                                     <TextBox Grid.Column="1" Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}" Margin="4"/>
                                     <TextBox Grid.Column="2" Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}" Margin="4"/>
-                                    <TextBlock Grid.Column="3" Text="{Binding AssignedTaskNames}" Foreground="{StaticResource MutedTextBrush}"
+                                    <TextBlock Grid.Column="3" Text="{Binding AssignedTaskNames}" Foreground="{DynamicResource MutedTextBrush}"
                                                VerticalAlignment="Center" Margin="8,0" TextTrimming="CharacterEllipsis"/>
                                     <Button Grid.Column="4" Content="Delete" Style="{StaticResource DangerButton}" Margin="4" Padding="6,4"
                                             FontSize="10"

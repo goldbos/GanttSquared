@@ -308,12 +308,60 @@ namespace GanttSquared
 
         private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
+            if (e.PropertyName == nameof(MainViewModel.IsDarkTheme))
+            {
+                ApplyTheme(ViewModel.IsDarkTheme);
+                return;
+            }
+
             if (_syncingSelection || e.PropertyName != nameof(MainViewModel.SelectedNode))
                 return;
 
             _syncingSelection = true;
             TaskList.SelectedItem = ViewModel.SelectedNode;
             _syncingSelection = false;
+        }
+
+        // Every {StaticResource X} reference in MainWindow.xaml resolved to the SAME brush
+        // INSTANCE at load time and keeps that reference for the window's lifetime - but
+        // SolidColorBrush.Color is itself a dependency property, so mutating it here repaints
+        // every use of that brush immediately. Converting the whole file to DynamicResource
+        // (the more usual way to support runtime theme switching) would touch dozens of
+        // unrelated bindings; this reaches the same result without it.
+        private static readonly (string Key, string Dark, string Light)[] ThemeBrushes =
+        {
+            ("WindowBackgroundBrush", "#FF17181C", "#FFF3F4F6"),
+            ("PanelBrush", "#FF1E1F24", "#FFFFFFFF"),
+            ("PanelAltBrush", "#FF24252B", "#FFF3F4F6"),
+            ("BorderBrush2", "#FF34353D", "#FFE2E4E9"),
+            ("TextBrush", "#FFE8E9ED", "#FF1F2328"),
+            ("MutedTextBrush", "#FF9AA0AC", "#FF6B7280"),
+            ("RowAltBrush", "#FF212227", "#FFF8F9FB"),
+            ("FieldBackgroundBrush", "#FF2A2B32", "#FFF3F4F6"),
+            ("CanvasBackgroundBrush", "#FF19191E", "#FFFAFAFB"),
+        };
+
+        private void ApplyTheme(bool isDark)
+        {
+            // WPF auto-freezes some of these SolidColorBrush resources at load time (a
+            // performance optimization for Freezables that are only ever consumed via
+            // StaticResource with no bindings/animations) - mutating a frozen brush's Color
+            // throws "read-only state". Replacing the dictionary entry with a fresh instance
+            // each time sidesteps that entirely, and is exactly what DynamicResource (which
+            // every consumer below was switched to) is designed to propagate: StaticResource
+            // consumers keep the reference they first resolved forever, so this technique only
+            // works because nothing here uses StaticResource for these keys.
+            foreach (var (key, dark, light) in ThemeBrushes)
+            {
+                var color = (Color)ColorConverter.ConvertFromString(isDark ? dark : light);
+                Resources[key] = new SolidColorBrush(color);
+            }
+
+            // Window.Background can't reference WindowBackgroundBrush via {Dynamic|Static}Resource
+            // in XAML (a self-reference on the root element's own attribute resolves before its
+            // own Window.Resources dictionary is populated), so it's wired up here instead.
+            if (Resources["WindowBackgroundBrush"] is SolidColorBrush windowBackground)
+                Background = windowBackground;
         }
 
         private void TaskList_PreviewKeyDown(object sender, KeyEventArgs e)
