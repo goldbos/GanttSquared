@@ -54,6 +54,27 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
     [ObservableProperty]
     private string _sectionDisplay = string.Empty;
 
+    // --- Bulk edit: several tasks selected at once. Priority/Color/Progress are the only
+    // fields exposed here (the ones worth setting identically across a batch); each has its
+    // own "apply" checkbox so Save only touches fields the user actually opted into, rather
+    // than guessing from whether the shown value happens to differ from the first task's.
+    [ObservableProperty]
+    private bool _isBulkMode;
+
+    [ObservableProperty]
+    private int _bulkTaskCount;
+
+    [ObservableProperty]
+    private bool _bulkApplyPriority;
+
+    [ObservableProperty]
+    private bool _bulkApplyColor;
+
+    [ObservableProperty]
+    private bool _bulkApplyProgress;
+
+    private List<GanttTask> _bulkTasks = new();
+
     public IReadOnlyList<PriorityLevel> PriorityLevels { get; } = Enum.GetValues<PriorityLevel>();
 
     public event EventHandler? Applied;
@@ -67,6 +88,7 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
     public void LoadFrom(GanttTask? task)
     {
         _task = task;
+        IsBulkMode = false;
         HasSelection = task is not null;
 
         if (task is null)
@@ -84,6 +106,23 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
         SectionDisplay = task.ParentId is { } parentId ? _project.FindTask(parentId)?.Name ?? string.Empty : string.Empty;
     }
 
+    public void LoadForBulk(IReadOnlyList<GanttTask> tasks)
+    {
+        _task = null;
+        _bulkTasks = tasks.ToList();
+        IsBulkMode = true;
+        HasSelection = _bulkTasks.Count > 0;
+        BulkTaskCount = _bulkTasks.Count;
+        BulkApplyPriority = false;
+        BulkApplyColor = false;
+        BulkApplyProgress = false;
+
+        var first = _bulkTasks.Count > 0 ? _bulkTasks[0] : null;
+        Priority = first?.Priority ?? PriorityLevel.Medium;
+        Color = first?.Color;
+        ProgressPercent = first?.ProgressPercent ?? 0;
+    }
+
     partial void OnStartDateChanged(DateTime value) =>
         DurationDays = Math.Max(0, (EndDate.Date - value.Date).Days);
 
@@ -93,6 +132,12 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void Save()
     {
+        if (IsBulkMode)
+        {
+            SaveBulk();
+            return;
+        }
+
         if (_task is null)
             return;
 
@@ -134,6 +179,28 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
             _undoRedo.Do(new RescheduleTaskCommand(_project, task.Id, newStart, newEnd));
 
         LoadFrom(task);
+        Applied?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void SaveBulk()
+    {
+        var commands = new List<IUndoableCommand>();
+
+        foreach (var task in _bulkTasks)
+        {
+            if (BulkApplyPriority && task.Priority != Priority)
+                commands.Add(new EditTaskFieldCommand<PriorityLevel>(task, "priority", t => t.Priority, (t, v) => t.Priority = v, Priority));
+
+            if (BulkApplyColor && task.Color != Color)
+                commands.Add(new EditTaskFieldCommand<string?>(task, "color", t => t.Color, (t, v) => t.Color = v, Color));
+
+            if (BulkApplyProgress && task.ProgressPercent != ProgressPercent)
+                commands.Add(new EditTaskFieldCommand<int>(task, "progress", t => t.ProgressPercent, (t, v) => t.ProgressPercent = v, ProgressPercent));
+        }
+
+        if (commands.Count > 0)
+            _undoRedo.Do(new CompositeCommand(commands, $"Edit {_bulkTasks.Count} tasks"));
+
         Applied?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -785,41 +785,79 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14,10"
                               Visibility="{Binding Properties.HasSelection, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel DataContext="{Binding Properties}">
-                        <TextBlock Text="Task Properties" Foreground="{StaticResource TextBrush}" FontSize="14" Margin="0,0,0,8"/>
+                        <TextBlock Foreground="{StaticResource TextBrush}" FontSize="14" Margin="0,0,0,8">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="Task Properties"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsBulkMode}" Value="True">
+                                            <Setter Property="Text" Value="{Binding BulkTaskCount, StringFormat='{}{0} Tasks Selected'}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
 
-                        <TextBlock Text="TASK NAME" Style="{StaticResource PanelLabel}"/>
-                        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
+                        <!-- Single-task fields -->
+                        <StackPanel Visibility="{Binding IsBulkMode, Converter={StaticResource InverseBoolToVisibility}}">
+                            <TextBlock Text="TASK NAME" Style="{StaticResource PanelLabel}"/>
+                            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
 
-                        <DockPanel Margin="0,12,0,0">
-                            <TextBlock Text="Milestone" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
-                            <CheckBox IsChecked="{Binding IsMilestone}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                        </DockPanel>
+                            <DockPanel Margin="0,12,0,0">
+                                <TextBlock Text="Milestone" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+                                <CheckBox IsChecked="{Binding IsMilestone}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </DockPanel>
 
-                        <TextBlock Text="START DATE" Style="{StaticResource PanelLabel}"/>
-                        <DatePicker SelectedDate="{Binding StartDate}"/>
+                            <TextBlock Text="START DATE" Style="{StaticResource PanelLabel}"/>
+                            <DatePicker SelectedDate="{Binding StartDate}"/>
 
-                        <TextBlock Text="END DATE" Style="{StaticResource PanelLabel}"/>
-                        <DatePicker SelectedDate="{Binding EndDate}" IsEnabled="{Binding IsMilestone, Converter={StaticResource InverseBool}}"/>
+                            <TextBlock Text="END DATE" Style="{StaticResource PanelLabel}"/>
+                            <DatePicker SelectedDate="{Binding EndDate}" IsEnabled="{Binding IsMilestone, Converter={StaticResource InverseBool}}"/>
 
-                        <TextBlock Text="DURATION (DAYS)" Style="{StaticResource PanelLabel}"/>
-                        <TextBox Text="{Binding DurationDays, UpdateSourceTrigger=PropertyChanged}"
-                                 IsEnabled="{Binding IsMilestone, Converter={StaticResource InverseBool}}"/>
+                            <TextBlock Text="DURATION (DAYS)" Style="{StaticResource PanelLabel}"/>
+                            <TextBox Text="{Binding DurationDays, UpdateSourceTrigger=PropertyChanged}"
+                                     IsEnabled="{Binding IsMilestone, Converter={StaticResource InverseBool}}"/>
 
-                        <TextBlock Text="SECTION" Style="{StaticResource PanelLabel}"/>
-                        <TextBox Text="{Binding SectionDisplay, Mode=OneWay}" IsReadOnly="True" Opacity="0.7"/>
+                            <TextBlock Text="SECTION" Style="{StaticResource PanelLabel}"/>
+                            <TextBox Text="{Binding SectionDisplay, Mode=OneWay}" IsReadOnly="True" Opacity="0.7"/>
 
-                        <TextBlock Text="COLOR" Style="{StaticResource PanelLabel}"/>
-                        <TextBox Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Text="COLOR" Style="{StaticResource PanelLabel}"/>
+                            <TextBox Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}"/>
 
-                        <TextBlock Text="PRIORITY" Style="{StaticResource PanelLabel}"/>
-                        <ComboBox ItemsSource="{Binding PriorityLevels}" SelectedItem="{Binding Priority}"/>
+                            <TextBlock Text="PRIORITY" Style="{StaticResource PanelLabel}"/>
+                            <ComboBox ItemsSource="{Binding PriorityLevels}" SelectedItem="{Binding Priority}"/>
 
-                        <TextBlock Text="PROGRESS (%)" Style="{StaticResource PanelLabel}"/>
-                        <TextBox Text="{Binding ProgressPercent, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Text="PROGRESS (%)" Style="{StaticResource PanelLabel}"/>
+                            <TextBox Text="{Binding ProgressPercent, UpdateSourceTrigger=PropertyChanged}"/>
 
-                        <TextBlock Text="DESCRIPTION" Style="{StaticResource PanelLabel}"/>
-                        <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
-                                 AcceptsReturn="True" TextWrapping="Wrap" Height="70"/>
+                            <TextBlock Text="DESCRIPTION" Style="{StaticResource PanelLabel}"/>
+                            <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                                     AcceptsReturn="True" TextWrapping="Wrap" Height="70"/>
+                        </StackPanel>
+
+                        <!-- Bulk-edit fields: only checked fields are applied to every selected task on Save -->
+                        <StackPanel Visibility="{Binding IsBulkMode, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="Check a field to apply it to every selected task." Foreground="{StaticResource MutedTextBrush}"
+                                       FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                            <DockPanel Margin="0,12,0,4">
+                                <CheckBox IsChecked="{Binding BulkApplyPriority}" VerticalAlignment="Center"/>
+                                <TextBlock Text="PRIORITY" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <ComboBox ItemsSource="{Binding PriorityLevels}" SelectedItem="{Binding Priority}" IsEnabled="{Binding BulkApplyPriority}"/>
+
+                            <DockPanel Margin="0,12,0,4">
+                                <CheckBox IsChecked="{Binding BulkApplyColor}" VerticalAlignment="Center"/>
+                                <TextBlock Text="COLOR" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <TextBox Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding BulkApplyColor}"/>
+
+                            <DockPanel Margin="0,12,0,4">
+                                <CheckBox IsChecked="{Binding BulkApplyProgress}" VerticalAlignment="Center"/>
+                                <TextBlock Text="PROGRESS (%)" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <TextBox Text="{Binding ProgressPercent, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding BulkApplyProgress}"/>
+                        </StackPanel>
 
                         <Grid Margin="0,18,0,0">
                             <Grid.ColumnDefinitions>

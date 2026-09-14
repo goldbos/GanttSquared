@@ -143,6 +143,11 @@ public sealed partial class MainViewModel : ObservableObject
 
         SelectedNode = list.Count == 1 ? list[0] : null;
 
+        // SelectedNode = null (for 0 or >1 selected) already cleared Properties via
+        // OnSelectedNodeChanged above; for >1 that gets overridden here with the bulk view.
+        if (list.Count > 1)
+            Properties.LoadForBulk(list.Select(n => n.Task).ToList());
+
         DeleteSelectedCommand.NotifyCanExecuteChanged();
         IndentSelectedCommand.NotifyCanExecuteChanged();
         OutdentSelectedCommand.NotifyCanExecuteChanged();
