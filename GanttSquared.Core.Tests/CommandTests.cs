@@ -202,6 +202,52 @@ public class CommandTests
     }
 
     [Fact]
+    public void ReparentTaskCommand_InsertBeforeTarget_PlacesAtThatPosition()
+    {
+        var project = new ProjectModel();
+        var parent = MakeTask("Parent", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        var a = MakeTask("A", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        var b = MakeTask("B", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        var moving = MakeTask("Moving", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        project.AddTask(parent);
+        a.ParentId = parent.Id;
+        project.AddTask(a);
+        b.ParentId = parent.Id;
+        project.AddTask(b);
+        project.AddTask(moving);
+
+        new ReparentTaskCommand(project, moving.Id, parent.Id, insertBeforeTaskId: b.Id).Execute();
+
+        var siblings = project.GetChildren(parent.Id).OrderBy(t => t.OrderIndex).Select(t => t.Name).ToList();
+        Assert.Equal(new[] { "A", "Moving", "B" }, siblings);
+    }
+
+    [Fact]
+    public void ReparentTaskCommand_ReordersWithinSameParent()
+    {
+        var project = new ProjectModel();
+        var parent = MakeTask("Parent", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        var a = MakeTask("A", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        var b = MakeTask("B", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        var c = MakeTask("C", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 5));
+        project.AddTask(parent);
+        a.ParentId = parent.Id;
+        project.AddTask(a);
+        b.ParentId = parent.Id;
+        project.AddTask(b);
+        c.ParentId = parent.Id;
+        project.AddTask(c);
+
+        var manager = new UndoRedoManager();
+        manager.Do(new ReparentTaskCommand(project, c.Id, parent.Id, insertBeforeTaskId: a.Id));
+
+        Assert.Equal(new[] { "C", "A", "B" }, project.GetChildren(parent.Id).OrderBy(t => t.OrderIndex).Select(t => t.Name));
+
+        manager.Undo();
+        Assert.Equal(new[] { "A", "B", "C" }, project.GetChildren(parent.Id).OrderBy(t => t.OrderIndex).Select(t => t.Name));
+    }
+
+    [Fact]
     public void ReparentTaskCommand_UnderOwnDescendant_Throws()
     {
         var project = new ProjectModel();

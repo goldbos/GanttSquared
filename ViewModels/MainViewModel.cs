@@ -300,15 +300,46 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ResetZoom() => Timeline.ResetZoom();
 
-    /// <summary>Moves a task (and its subtree) to become the last child of a different parent, e.g. via drag-and-drop in the task list. Pass null to move it to the root level.</summary>
-    public void ReparentTask(TaskNodeViewModel source, TaskNodeViewModel? target)
+    /// <summary>Where a task-list drop landed relative to the row it was dropped on.</summary>
+    public enum DropPosition { Before, After, Into }
+
+    /// <summary>
+    /// Moves a task (and its subtree) via drag-and-drop in the task list. Into makes it the
+    /// last child of target (or moves it to the root level, for a null target); Before/After
+    /// make it a sibling of target at that exact position, including reordering among its
+    /// current siblings if target is already at the same level.
+    /// </summary>
+    public void ReparentTask(TaskNodeViewModel source, TaskNodeViewModel? target, DropPosition position = DropPosition.Into)
     {
         if (target is not null && target.Task.Id == source.Task.Id)
             return;
 
+        Guid? newParentId;
+        Guid? insertBeforeId;
+
+        if (target is null || position == DropPosition.Into)
+        {
+            newParentId = target?.Task.Id;
+            insertBeforeId = null;
+        }
+        else
+        {
+            newParentId = target.Task.ParentId;
+            if (position == DropPosition.Before)
+            {
+                insertBeforeId = target.Task.Id;
+            }
+            else
+            {
+                var siblings = Project.GetChildren(newParentId).OrderBy(t => t.OrderIndex).ToList();
+                var idx = siblings.FindIndex(t => t.Id == target.Task.Id);
+                insertBeforeId = idx >= 0 && idx + 1 < siblings.Count ? siblings[idx + 1].Id : null;
+            }
+        }
+
         try
         {
-            UndoRedo.Do(new ReparentTaskCommand(Project, source.Task.Id, target?.Task.Id));
+            UndoRedo.Do(new ReparentTaskCommand(Project, source.Task.Id, newParentId, insertBeforeId));
         }
         catch (InvalidOperationException)
         {

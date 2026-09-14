@@ -425,7 +425,20 @@ namespace GanttSquared
 
             var source = (TaskNodeViewModel)e.Data.GetData(typeof(TaskNodeViewModel))!;
             var target = FindRowNode(e.OriginalSource as DependencyObject);
-            ViewModel.ReparentTask(source, target);
+            ViewModel.ReparentTask(source, target, DropPositionFor(target, e));
+        }
+
+        /// <summary>Classifies where within the target row the drop landed: near the top/bottom third
+        /// means "insert as a sibling before/after this row", the middle third means "nest inside it".</summary>
+        private MainViewModel.DropPosition DropPositionFor(TaskNodeViewModel? target, DragEventArgs e)
+        {
+            if (target is null || TaskList.ItemContainerGenerator.ContainerFromItem(target) is not ListBoxItem container || container.ActualHeight <= 0)
+                return MainViewModel.DropPosition.Into;
+
+            var relativeY = e.GetPosition(container).Y / container.ActualHeight;
+            return relativeY < 0.3 ? MainViewModel.DropPosition.Before
+                : relativeY > 0.7 ? MainViewModel.DropPosition.After
+                : MainViewModel.DropPosition.Into;
         }
 
         private static TaskNodeViewModel? FindRowNode(DependencyObject? element)
