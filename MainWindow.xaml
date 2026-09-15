@@ -806,6 +806,14 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
+                <!-- Timeline date range: directly sets how much calendar time the canvas spans, independent of zoom (which only changes how many of those days fit on screen at once). -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,0,0">
+                    <TextBlock Text="Range" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <DatePicker SelectedDate="{Binding Timeline.RangeStartDate}" Width="110" Height="22" FontSize="11" ToolTip="Timeline start date"/>
+                    <TextBlock Text="&#8594;" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="6,0,6,0"/>
+                    <DatePicker SelectedDate="{Binding Timeline.RangeEndDate}" Width="110" Height="22" FontSize="11" ToolTip="Timeline end date"/>
+                </StackPanel>
+
                 <!-- Zoom toolbar -->
                 <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0">
                     <Button Content="&#8722;" Style="{StaticResource ZoomButtonStyle}" Command="{Binding ZoomOutCommand}" ToolTip="Zoom Out"/>

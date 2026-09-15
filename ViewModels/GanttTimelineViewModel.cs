@@ -49,6 +49,42 @@ public sealed partial class GanttTimelineViewModel : ObservableObject
     [ObservableProperty]
     private DateOnly _rangeEnd = DateOnly.FromDateTime(DateTime.Today).AddDays(PaddingDays);
 
+    partial void OnRangeStartChanged(DateOnly value) => OnPropertyChanged(nameof(RangeStartDate));
+
+    partial void OnRangeEndChanged(DateOnly value) => OnPropertyChanged(nameof(RangeEndDate));
+
+    /// <summary>
+    /// DateTime-typed wrappers around RangeStart/RangeEnd for the toolbar's DatePickers (which
+    /// bind DateTime?, not DateOnly). A pick that would invert the range (end before/at start,
+    /// or vice versa) is rejected rather than applied; the explicit OnPropertyChanged() call in
+    /// each setter runs regardless of whether the underlying DateOnly actually changed, so a
+    /// rejected pick snaps the picker's displayed value back to the still-current one instead of
+    /// silently leaving an unapplied date showing.
+    /// </summary>
+    public DateTime RangeStartDate
+    {
+        get => RangeStart.ToDateTime(TimeOnly.MinValue);
+        set
+        {
+            var newDate = DateOnly.FromDateTime(value);
+            if (newDate < RangeEnd)
+                RangeStart = newDate;
+            OnPropertyChanged();
+        }
+    }
+
+    public DateTime RangeEndDate
+    {
+        get => RangeEnd.ToDateTime(TimeOnly.MinValue);
+        set
+        {
+            var newDate = DateOnly.FromDateTime(value);
+            if (newDate > RangeStart)
+                RangeEnd = newDate;
+            OnPropertyChanged();
+        }
+    }
+
     /// <summary>Pixels per day, derived so exactly VisibleDayCount days fill the current viewport width.</summary>
     public double DayWidth => ViewportWidth > 0 ? ViewportWidth / VisibleDayCount : 20;
 
