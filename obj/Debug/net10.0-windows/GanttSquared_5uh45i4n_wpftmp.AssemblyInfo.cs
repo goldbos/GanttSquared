@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GanttSquared")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f6e6435bb7bab5d830bde212ae5aae70e63dcd66")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3b72ecf87d54403cd05903626eaf0c58ace5b8d9")]
 [assembly: System.Reflection.AssemblyProductAttribute("GanttSquared")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GanttSquared")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
