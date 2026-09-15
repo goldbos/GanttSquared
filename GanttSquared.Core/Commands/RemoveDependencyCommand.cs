@@ -2,6 +2,7 @@ using GanttSquared.Core.Model;
 
 namespace GanttSquared.Core.Commands;
 
+/// <summary>Removes a dependency link by id; undoing re-adds it. A no-op (both ways) if no link with that id exists.</summary>
 public sealed class RemoveDependencyCommand : IUndoableCommand
 {
     private readonly ProjectModel _project;

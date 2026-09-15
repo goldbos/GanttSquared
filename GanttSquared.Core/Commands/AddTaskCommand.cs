@@ -2,6 +2,7 @@ using GanttSquared.Core.Model;
 
 namespace GanttSquared.Core.Commands;
 
+/// <summary>Adds a new task to the project; undoing removes it (and cascades to anything added under it since, same as a manual delete).</summary>
 public sealed class AddTaskCommand : IUndoableCommand
 {
     private readonly ProjectModel _project;

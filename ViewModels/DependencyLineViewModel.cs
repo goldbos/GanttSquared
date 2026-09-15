@@ -1,7 +1,7 @@
 namespace GanttSquared.ViewModels;
 
 /// <summary>An elbow-routed connector from a predecessor bar's edge to a successor bar's edge.</summary>
-public sealed record DependencyLineViewModel(double X1, double Y1, double X2, double Y2)
+public sealed record DependencyLineViewModel(double X1, double Y1, double X2, double Y2, Guid DependencyId)
 {
     private const double Elbow = 12;
 

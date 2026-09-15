@@ -11,22 +11,29 @@ public sealed class ProjectModel
     private readonly List<DependencyLink> _dependencies = new();
     private readonly List<ProjectResource> _resources = new();
 
+    /// <summary>The project's display name, shown in the window title and used as the default save-file name.</summary>
     public string Name { get; set; } = "Untitled Project";
 
     /// <summary>Whether task rows should display WBS-style numbering (1, 1.1, 1.2, 2, ...). Set at project creation.</summary>
     public bool UseWbsNumbering { get; set; }
 
+    /// <summary>Every task in the project, flat (not hierarchical) - use <see cref="GetChildren"/>/<see cref="GetRootTasks"/> to navigate the tree.</summary>
     public IReadOnlyList<GanttTask> Tasks => _tasks;
 
+    /// <summary>Every dependency link in the project.</summary>
     public IReadOnlyList<DependencyLink> Dependencies => _dependencies;
 
+    /// <summary>Every resource (person/role) that tasks can be assigned to.</summary>
     public IReadOnlyList<ProjectResource> Resources => _resources;
 
+    /// <summary>Looks up a task by id, or null if no task with that id exists in the project.</summary>
     public GanttTask? FindTask(Guid id) => _tasksById.GetValueOrDefault(id);
 
+    /// <summary>The direct children of a task (or the root-level tasks, if parentId is null), ordered by <see cref="GanttTask.OrderIndex"/>.</summary>
     public IEnumerable<GanttTask> GetChildren(Guid? parentId) =>
         _tasks.Where(t => t.ParentId == parentId).OrderBy(t => t.OrderIndex);
 
+    /// <summary>The top-level tasks (those with no parent), ordered by <see cref="GanttTask.OrderIndex"/>.</summary>
     public IEnumerable<GanttTask> GetRootTasks() => GetChildren(null);
 
     /// <summary>All descendants of a task (children, grandchildren, ...), not including the task itself.</summary>
@@ -167,6 +174,7 @@ public sealed class ProjectModel
         return false;
     }
 
+    /// <summary>Adds a dependency link. Throws if either task doesn't exist, the link would create a cycle, or it's a duplicate.</summary>
     public void AddDependency(DependencyLink link)
     {
         if (FindTask(link.PredecessorTaskId) is null || FindTask(link.SuccessorTaskId) is null)
@@ -181,6 +189,7 @@ public sealed class ProjectModel
         _dependencies.Add(link);
     }
 
+    /// <summary>Removes a dependency link by id. A no-op if no link with that id exists.</summary>
     public void RemoveDependency(Guid dependencyId)
     {
         var dep = _dependencies.FirstOrDefault(d => d.Id == dependencyId);
@@ -188,12 +197,15 @@ public sealed class ProjectModel
             _dependencies.Remove(dep);
     }
 
+    /// <summary>Dependency links where the given task is the predecessor (i.e. links pointing away from it).</summary>
     public IEnumerable<DependencyLink> GetOutgoing(Guid taskId) =>
         _dependencies.Where(d => d.PredecessorTaskId == taskId);
 
+    /// <summary>Dependency links where the given task is the successor (i.e. links pointing into it).</summary>
     public IEnumerable<DependencyLink> GetIncoming(Guid taskId) =>
         _dependencies.Where(d => d.SuccessorTaskId == taskId);
 
+    /// <summary>Adds a resource to the project. Throws if a resource with the same id already exists.</summary>
     public void AddResource(ProjectResource resource)
     {
         if (_resources.Any(r => r.Id == resource.Id))
@@ -202,6 +214,7 @@ public sealed class ProjectModel
         _resources.Add(resource);
     }
 
+    /// <summary>Removes a resource and unassigns it from every task that had it assigned.</summary>
     public void RemoveResource(Guid resourceId)
     {
         _resources.RemoveAll(r => r.Id == resourceId);

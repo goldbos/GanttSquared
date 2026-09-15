@@ -12,6 +12,9 @@ using Microsoft.Win32;
 
 namespace GanttSquared.ViewModels;
 
+/// <summary>The app's three main views, switched between by the tab bar.</summary>
+public enum MainTab { Gantt, Resources, Dashboard }
+
 public sealed partial class MainViewModel : ObservableObject
 {
     private enum DragMode { None, Move, ResizeLeft, ResizeRight }
@@ -36,8 +39,29 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<ResourceRowViewModel> Resources { get; } = new();
 
+    /// <summary>Every allocation bar across every resource, flat - mirrors how VisibleRows itself carries the Gantt bars' positions, rather than nesting bars inside each ResourceRowViewModel.</summary>
+    public ObservableCollection<ResourceAllocationBarViewModel> ResourceAllocationBars { get; } = new();
+
+    /// <summary>Width of the Resources tab's allocation timeline canvas - same date range/zoom as the Gantt canvas, since both read the same Timeline instance.</summary>
+    public double ResourceCanvasWidth => Timeline.TotalWidth;
+
+    /// <summary>Height of the Resources tab's allocation timeline canvas, one RowHeight per resource.</summary>
+    public double ResourceCanvasHeight => Math.Max(1, Resources.Count * RowHeight);
+
+    /// <summary>Project-wide summary stats for the Dashboard tab; replaced wholesale by RebuildDashboard() on every RebuildTree.</summary>
     [ObservableProperty]
-    private bool _isResourcesTabActive;
+    private DashboardViewModel _dashboard = new();
+
+    /// <summary>Which of the three main views (Gantt/Resources/Dashboard) is currently shown.</summary>
+    [ObservableProperty]
+    private MainTab _activeTab = MainTab.Gantt;
+
+    /// <summary>True while the left icon rail is showing text labels alongside its icons, toggled by the button pinned at the rail's bottom.</summary>
+    [ObservableProperty]
+    private bool _isRailExpanded;
+
+    [RelayCommand]
+    private void ToggleRailExpanded() => IsRailExpanded = !IsRailExpanded;
 
     [ObservableProperty]
     private double _rowHeight = 32;
@@ -59,10 +83,13 @@ public sealed partial class MainViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(BarHeight));
         RecomputeLayout();
+        RebuildResources();
     }
 
+    /// <summary>Total pixel width of the Gantt canvas, driven by the timeline's date range and zoom.</summary>
     public double CanvasWidth => Timeline.TotalWidth;
 
+    /// <summary>Total pixel height of the Gantt canvas, one RowHeight per visible row.</summary>
     public double CanvasHeight => Math.Max(1, VisibleRows.Count * RowHeight);
 
     // The actual repaint (mutating each theme brush's Color) is a View concern and lives in
@@ -151,6 +178,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>The window's title bar text: project name plus a dirty-state marker and/or "(unsaved)" as applicable.</summary>
     public string WindowTitleText =>
         $"{Project.Name}{(IsDirty ? " *" : "")}{(CurrentFilePath is null ? " (unsaved)" : "")}";
 
@@ -167,9 +195,14 @@ public sealed partial class MainViewModel : ObservableObject
             NewTaskCommand.NotifyCanExecuteChanged();
             UndoCommand.NotifyCanExecuteChanged();
             RedoCommand.NotifyCanExecuteChanged();
+            SaveRecoverySnapshot();
         };
 
-        Timeline.PropertyChanged += (_, _) => RecomputeLayout();
+        Timeline.PropertyChanged += (_, _) =>
+        {
+            RecomputeLayout();
+            RebuildResources(); // allocation bar positions/widths depend on Timeline too
+        };
 
         SeedSampleData();
         RebuildTree();
@@ -209,6 +242,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         RefreshVisibleRows();
         RebuildResources();
+        RebuildDashboard();
 
         var restored = selectedIds
             .Select(id => FindNode(RootNodes, id))
@@ -225,21 +259,122 @@ public sealed partial class MainViewModel : ObservableObject
     private void RebuildResources()
     {
         var selectedResourceId = Resources.FirstOrDefault(r => r.IsSelected)?.Resource.Id;
+        var expandedResourceIds = Resources.Where(r => r.IsDetailsExpanded).Select(r => r.Resource.Id).ToHashSet();
 
         Resources.Clear();
+        ResourceAllocationBars.Clear();
+
+        var index = 0;
         foreach (var resource in Project.Resources)
         {
-            var assignedNames = Project.Tasks
+            var assignedTasks = Project.Tasks
                 .Where(t => t.AssignedResourceIds.Contains(resource.Id))
-                .Select(t => t.Name);
+                .ToList();
+
+            var conflictingTaskIds = new HashSet<Guid>();
+            for (var i = 0; i < assignedTasks.Count; i++)
+            {
+                for (var j = i + 1; j < assignedTasks.Count; j++)
+                {
+                    if (assignedTasks[i].StartDate > assignedTasks[j].EndDate || assignedTasks[j].StartDate > assignedTasks[i].EndDate)
+                        continue;
+
+                    conflictingTaskIds.Add(assignedTasks[i].Id);
+                    conflictingTaskIds.Add(assignedTasks[j].Id);
+                }
+            }
+
+            var rowTop = index * RowHeight;
+            foreach (var t in assignedTasks)
+            {
+                ResourceAllocationBars.Add(new ResourceAllocationBarViewModel(
+                    X: Timeline.DateToX(t.StartDate),
+                    Y: rowTop + (RowHeight - BarHeight) / 2,
+                    Width: Math.Max(t.EndDate.DayNumber - t.StartDate.DayNumber, 1) * Timeline.DayWidth,
+                    Height: BarHeight,
+                    ColorHex: t.Color ?? TaskNodeViewModel.DefaultColorFor(t.Priority),
+                    TaskName: t.Name,
+                    IsConflict: conflictingTaskIds.Contains(t.Id)));
+            }
 
             var row = new ResourceRowViewModel(resource)
             {
-                AssignedTaskNames = string.Join(", ", assignedNames)
+                AssignedTaskNames = string.Join(", ", assignedTasks.Select(t => t.Name)),
+                IsOverallocated = conflictingTaskIds.Count > 0,
+                RowTop = rowTop,
+                IsAlternateRow = index % 2 == 1
             };
             row.IsSelected = resource.Id == selectedResourceId;
+            row.IsDetailsExpanded = expandedResourceIds.Contains(resource.Id);
             Resources.Add(row);
+            index++;
         }
+
+        OnPropertyChanged(nameof(ResourceCanvasWidth));
+        OnPropertyChanged(nameof(ResourceCanvasHeight));
+    }
+
+    /// <summary>Recomputes the Dashboard tab's project-wide summary. Piggybacked onto RebuildTree, same as RebuildResources.</summary>
+    private void RebuildDashboard()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+
+        // Groups are organizational (a section header with no independent progress of its own);
+        // only tasks nobody else lists as their parent count as actual work items here.
+        var parentIds = Project.Tasks.Where(t => t.ParentId is not null).Select(t => t.ParentId!.Value).ToHashSet();
+        var leafTasks = Project.Tasks.Where(t => !parentIds.Contains(t.Id)).ToList();
+
+        var overdueTasks = leafTasks.Where(t => t.EndDate < today && t.ProgressPercent < 100).ToList();
+        var notStarted = leafTasks.Count(t => t.ProgressPercent == 0 && !overdueTasks.Contains(t));
+        var completed = leafTasks.Count(t => t.ProgressPercent >= 100);
+        var inProgress = leafTasks.Count - notStarted - completed - overdueTasks.Count;
+
+        var conflictedResourceNames = new List<string>();
+        foreach (var resource in Project.Resources)
+        {
+            var assigned = Project.Tasks.Where(t => t.AssignedResourceIds.Contains(resource.Id)).ToList();
+            for (var i = 0; i < assigned.Count; i++)
+            {
+                var hasConflict = false;
+                for (var j = i + 1; j < assigned.Count && !hasConflict; j++)
+                {
+                    if (assigned[i].StartDate <= assigned[j].EndDate && assigned[j].StartDate <= assigned[i].EndDate)
+                        hasConflict = true;
+                }
+
+                if (hasConflict)
+                {
+                    conflictedResourceNames.Add(resource.Name);
+                    break;
+                }
+            }
+        }
+
+        Dashboard = new DashboardViewModel
+        {
+            TotalTasks = leafTasks.Count,
+            CompletionPercent = leafTasks.Count > 0 ? leafTasks.Average(t => t.ProgressPercent) : 0,
+            NotStartedCount = notStarted,
+            InProgressCount = Math.Max(inProgress, 0),
+            CompletedCount = completed,
+            OverdueCount = overdueTasks.Count,
+            LowPriorityCount = leafTasks.Count(t => t.Priority == PriorityLevel.Low),
+            MediumPriorityCount = leafTasks.Count(t => t.Priority == PriorityLevel.Medium),
+            HighPriorityCount = leafTasks.Count(t => t.Priority == PriorityLevel.High),
+            CriticalPriorityCount = leafTasks.Count(t => t.Priority == PriorityLevel.Critical),
+            OverdueTasks = overdueTasks
+                .OrderBy(t => t.EndDate)
+                .Take(6)
+                .Select(t => new DashboardTaskSummary(t.Name, t.EndDate))
+                .ToList(),
+            UpcomingMilestones = leafTasks
+                .Where(t => t.IsMilestone && t.StartDate >= today)
+                .OrderBy(t => t.StartDate)
+                .Take(6)
+                .Select(t => new DashboardTaskSummary(t.Name, t.StartDate))
+                .ToList(),
+            ConflictedResourceNames = conflictedResourceNames
+        };
     }
 
     /// <summary>Re-flattens RootNodes into VisibleRows respecting each group's IsExpanded, then recomputes canvas layout.</summary>
@@ -309,6 +444,31 @@ public sealed partial class MainViewModel : ObservableObject
                 ? 0
                 : Math.Max(node.EffectiveEndDate.DayNumber - node.EffectiveStartDate.DayNumber, 1) * Timeline.DayWidth;
             node.IsOverdue = node.EffectiveEndDate < today && node.Task.ProgressPercent < 100;
+            node.IsResourceConflict = false;
+        }
+
+        // Flag every pair of visible tasks that share an assigned resource and whose date
+        // ranges overlap - both sides of the pair get flagged, not just the later one, so
+        // either bar alone tells you something needs attention.
+        var byResource = VisibleRows
+            .Where(n => n.Task.AssignedResourceIds.Count > 0)
+            .SelectMany(n => n.Task.AssignedResourceIds.Select(resourceId => (ResourceId: resourceId, Node: n)))
+            .GroupBy(x => x.ResourceId, x => x.Node);
+
+        foreach (var nodes in byResource)
+        {
+            var list = nodes.ToList();
+            for (var i = 0; i < list.Count; i++)
+            {
+                for (var j = i + 1; j < list.Count; j++)
+                {
+                    if (list[i].EffectiveStartDate > list[j].EffectiveEndDate || list[j].EffectiveStartDate > list[i].EffectiveEndDate)
+                        continue;
+
+                    list[i].IsResourceConflict = true;
+                    list[j].IsResourceConflict = true;
+                }
+            }
         }
 
         RebuildDependencyLines();
@@ -331,9 +491,12 @@ public sealed partial class MainViewModel : ObservableObject
             var x2 = succ.Task.IsMilestone ? succ.BarX - 8 : succ.BarX;
             var y2 = succ.RowTop + RowHeight / 2;
 
-            DependencyLines.Add(new DependencyLineViewModel(x1, y1, x2, y2));
+            DependencyLines.Add(new DependencyLineViewModel(x1, y1, x2, y2, dep.Id));
         }
     }
+
+    /// <summary>Removes a dependency link (undoable) - called when the user clicks a connector line on the canvas.</summary>
+    public void RemoveDependency(Guid dependencyId) => UndoRedo.Do(new RemoveDependencyCommand(Project, dependencyId));
 
     [RelayCommand]
     private void ToggleExpand(TaskNodeViewModel? node)
@@ -371,10 +534,13 @@ public sealed partial class MainViewModel : ObservableObject
     private void SelectRow(TaskNodeViewModel? node) => SetSelection(node is null ? Enumerable.Empty<TaskNodeViewModel>() : new[] { node });
 
     [RelayCommand]
-    private void ShowGanttTab() => IsResourcesTabActive = false;
+    private void ShowGanttTab() => ActiveTab = MainTab.Gantt;
 
     [RelayCommand]
-    private void ShowResourcesTab() => IsResourcesTabActive = true;
+    private void ShowResourcesTab() => ActiveTab = MainTab.Resources;
+
+    [RelayCommand]
+    private void ShowDashboardTab() => ActiveTab = MainTab.Dashboard;
 
     [RelayCommand]
     private void AddResource() => UndoRedo.Do(new AddResourceCommand(Project, new ProjectResource()));
@@ -442,6 +608,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>Applies an in-place rename from the task list's inline editor (undoable), unless the new name is blank or unchanged.</summary>
     public void CommitInlineRename(TaskNodeViewModel node, string newName)
     {
         node.IsEditingName = false;
@@ -552,6 +719,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     // --- Dependency-link drag: drag from a bar's edge handle onto another bar -------------
 
+    /// <summary>Starts a dependency-link drag from source's right edge; a no-op for group rows, which can't be link endpoints.</summary>
     public void BeginLinkDrag(TaskNodeViewModel source)
     {
         if (source.IsGroup)
@@ -568,6 +736,7 @@ public sealed partial class MainViewModel : ObservableObject
         IsDraggingLink = true;
     }
 
+    /// <summary>Updates the rubber-band preview to the current pointer position, and whether dropping on hoveredTarget right now would be a valid link.</summary>
     public void UpdateLinkDrag(double canvasX, double canvasY, TaskNodeViewModel? hoveredTarget)
     {
         if (!IsDraggingLink)
@@ -582,6 +751,7 @@ public sealed partial class MainViewModel : ObservableObject
             && !Project.WouldCreateCycle(_dragLinkSource.Task.Id, hoveredTarget.Task.Id);
     }
 
+    /// <summary>Commits the link drag as a new dependency (undoable) if dropped on a valid target; otherwise discards it silently (invalid drops - cycle, duplicate, group row, or none - aren't errors to the user).</summary>
     public void EndLinkDrag(TaskNodeViewModel? droppedOnTarget)
     {
         IsDraggingLink = false;
@@ -802,6 +972,71 @@ public sealed partial class MainViewModel : ObservableObject
         Timeline.FitToTasks(Project.Tasks);
     }
 
+    // --- Crash recovery: a hidden snapshot written on every committed edit, independent of
+    // CurrentFilePath/manual Save, so a crash (or the global handler in App.xaml.cs catching
+    // one) never loses work back further than the last edit. Only ever deleted on a clean
+    // close or when the user declines the restore prompt - a leftover file at startup is
+    // exactly the signal that the previous session didn't end cleanly. ------------------------
+
+    private static readonly string RecoveryFilePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GanttSquared", "recovery.gantt.json");
+
+    /// <summary>True if a recovery snapshot exists on disk, meaning the previous session didn't close cleanly. Checked by MainWindow at startup to offer a restore prompt.</summary>
+    public static bool HasPendingRecovery() => File.Exists(RecoveryFilePath);
+
+    private void SaveRecoverySnapshot()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(RecoveryFilePath)!);
+            ProjectFileSerializer.Save(Project, RecoveryFilePath);
+        }
+        catch
+        {
+            // Best-effort - a failure here shouldn't block normal editing.
+        }
+    }
+
+    /// <summary>Loads the recovery snapshot as the current project (or shows an error if it's unreadable), then discards it either way.</summary>
+    public void RestoreFromRecovery()
+    {
+        try
+        {
+            var loaded = ProjectFileSerializer.Load(RecoveryFilePath);
+            Project.ReplaceContents(loaded);
+            UndoRedo.Clear();
+            CurrentFilePath = null; // recovered content hasn't been re-saved to its original file yet
+            IsDirty = true;
+            OnPropertyChanged(nameof(UseWbsNumbering));
+            SetSelection(Array.Empty<TaskNodeViewModel>());
+            RebuildTree();
+            Timeline.FitToTasks(Project.Tasks);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException)
+        {
+            MessageBox.Show(
+                $"Couldn't read the recovered project:\n\n{ex.Message}",
+                "Recovery Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            DiscardRecovery();
+        }
+    }
+
+    /// <summary>Deletes the recovery snapshot - called after a clean close, or once its contents have been dealt with (restored or declined).</summary>
+    public void DiscardRecovery()
+    {
+        try
+        {
+            File.Delete(RecoveryFilePath);
+        }
+        catch
+        {
+            // Best-effort.
+        }
+    }
+
     /// <summary>
     /// If there are unsaved changes, asks the user whether to save, discard, or cancel.
     /// Returns true if the caller is clear to proceed (nothing to save, changes were saved,
@@ -889,6 +1124,30 @@ public sealed partial class MainViewModel : ObservableObject
         research.AssignedResourceIds.Add(alice.Id);
         design.AssignedResourceIds.Add(alice.Id);
         development.AssignedResourceIds.Add(bob.Id);
+
+        AddFillerBacklog(today);
+    }
+
+    /// <summary>A long run of throwaway tasks purely so the list is taller than one screen and actually needs scrolling to see everything - not meant to represent real work.</summary>
+    private void AddFillerBacklog(DateOnly today)
+    {
+        var priorities = new[] { PriorityLevel.Low, PriorityLevel.Medium, PriorityLevel.High, PriorityLevel.Critical };
+        var nouns = new[] { "Widget", "Endpoint", "Report", "Migration", "Audit", "Sync Job", "Dashboard Tile", "Cache Layer", "Form", "Integration" };
+        var verbs = new[] { "Draft", "Review", "Refactor", "Polish", "Investigate", "Document", "Validate", "Optimize", "Retire", "Prototype" };
+
+        for (var g = 0; g < 6; g++)
+        {
+            var groupStart = today.AddDays(30 + g * 15);
+            var group = AddSampleTask($"Backlog Batch {g + 1}", groupStart, groupStart, parentId: null);
+
+            for (var i = 0; i < 12; i++)
+            {
+                var start = groupStart.AddDays(i);
+                var end = start.AddDays(1 + i % 4);
+                var name = $"{verbs[(g * 12 + i) % verbs.Length]} {nouns[(g * 12 + i) % nouns.Length]} #{g * 12 + i + 1}";
+                AddSampleTask(name, start, end, group.Id, priorities[i % priorities.Length]);
+            }
+        }
     }
 
     private GanttTask AddSampleTask(string name, DateOnly start, DateOnly end, Guid? parentId, PriorityLevel priority = PriorityLevel.Medium, bool milestone = false)

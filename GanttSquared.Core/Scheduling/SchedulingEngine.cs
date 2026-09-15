@@ -2,6 +2,7 @@ using GanttSquared.Core.Model;
 
 namespace GanttSquared.Core.Scheduling;
 
+/// <summary>One task's resulting dates after a scheduling cascade - a proposed change, not yet applied to the project.</summary>
 public readonly record struct TaskDateChange(Guid TaskId, DateOnly NewStart, DateOnly NewEnd);
 
 /// <summary>

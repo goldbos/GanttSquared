@@ -10,13 +10,16 @@ public sealed class GanttTask
 
     public string Name { get; set; } = "New Task";
 
+    /// <summary>Set via <see cref="SetDates"/>/<see cref="MoveTo"/>/<see cref="ResizeTo"/>/<see cref="SetDurationDays"/> rather than directly, so the End &gt;= Start invariant always holds.</summary>
     public DateOnly StartDate { get; private set; } = DateOnly.FromDateTime(DateTime.Today);
 
+    /// <summary>Set via <see cref="SetDates"/>/<see cref="ResizeTo"/>/<see cref="SetDurationDays"/> rather than directly; always equals <see cref="StartDate"/> for a milestone.</summary>
     public DateOnly EndDate { get; private set; } = DateOnly.FromDateTime(DateTime.Today);
 
     /// <summary>Duration in calendar days, derived from Start/End (inclusive span).</summary>
     public int DurationDays => EndDate.DayNumber - StartDate.DayNumber;
 
+    /// <summary>Set via <see cref="SetMilestone"/> rather than directly, since flipping it also collapses <see cref="EndDate"/> to <see cref="StartDate"/>.</summary>
     public bool IsMilestone { get; private set; }
 
     /// <summary>0-100.</summary>
@@ -29,6 +32,9 @@ public sealed class GanttTask
 
     public string Description { get; set; } = string.Empty;
 
+    /// <summary>Free-text notes, separate from Description - meant for ad-hoc working notes rather than a summary of the task itself.</summary>
+    public string Notes { get; set; } = string.Empty;
+
     /// <summary>Parent task id, for hierarchical grouping (a "Section"). Null = top-level.</summary>
     public Guid? ParentId { get; set; }
 
@@ -38,6 +44,7 @@ public sealed class GanttTask
     /// <summary>Whether child tasks are shown (collapsed groups hide their subtasks).</summary>
     public bool IsExpanded { get; set; } = true;
 
+    /// <summary>Ids of the <see cref="ProjectResource"/>s assigned to this task; drives the resource-overallocation check in MainViewModel.RecomputeLayout.</summary>
     public List<Guid> AssignedResourceIds { get; init; } = new();
 
     public GanttTask()

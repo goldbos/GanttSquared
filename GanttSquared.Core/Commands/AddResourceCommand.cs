@@ -2,6 +2,7 @@ using GanttSquared.Core.Model;
 
 namespace GanttSquared.Core.Commands;
 
+/// <summary>Adds a resource to the project; undoing removes it again (and any assignments, since it never had any yet).</summary>
 public sealed class AddResourceCommand : IUndoableCommand
 {
     private readonly ProjectModel _project;

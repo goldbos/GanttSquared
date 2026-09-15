@@ -53,6 +53,9 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
     private string _description = string.Empty;
 
     [ObservableProperty]
+    private string _notes = string.Empty;
+
+    [ObservableProperty]
     private string _sectionDisplay = string.Empty;
 
     // --- Bulk edit: several tasks selected at once. Priority/Color/Progress are the only
@@ -81,6 +84,7 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
 
     public IReadOnlyList<PriorityLevel> PriorityLevels { get; } = Enum.GetValues<PriorityLevel>();
 
+    /// <summary>Raised after a successful Save (single or bulk), so MainWindow can clear focus/collapse the panel as needed.</summary>
     public event EventHandler? Applied;
 
     public TaskPropertiesViewModel(ProjectModel project, UndoRedoManager undoRedo)
@@ -89,6 +93,7 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
         _undoRedo = undoRedo;
     }
 
+    /// <summary>Loads a single task's fields into the draft for editing, or clears the panel if task is null (nothing/multiple selected).</summary>
     public void LoadFrom(GanttTask? task)
     {
         _task = task;
@@ -107,6 +112,7 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
         Priority = task.Priority;
         ProgressPercent = task.ProgressPercent;
         Description = task.Description;
+        Notes = task.Notes;
         SectionDisplay = task.ParentId is { } parentId ? _project.FindTask(parentId)?.Name ?? string.Empty : string.Empty;
 
         ResourceOptions.Clear();
@@ -114,6 +120,7 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
             ResourceOptions.Add(new ResourceOptionViewModel(resource.Id, resource.Name, task.AssignedResourceIds.Contains(resource.Id)));
     }
 
+    /// <summary>Switches the panel into bulk-edit mode for several selected tasks at once - only Priority/Color/Progress are editable, each gated by its own apply-checkbox.</summary>
     public void LoadForBulk(IReadOnlyList<GanttTask> tasks)
     {
         _task = null;
@@ -164,6 +171,7 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
         var newPriority = Priority;
         var newProgress = ProgressPercent;
         var newDescription = Description;
+        var newNotes = Notes;
         var newStart = DateOnly.FromDateTime(StartDate);
         var newEnd = newIsMilestone ? newStart : DateOnly.FromDateTime(EndDate);
         // Same reentrancy hazard as the fields above: each _undoRedo.Do() below triggers a
@@ -198,6 +206,9 @@ public sealed partial class TaskPropertiesViewModel : ObservableObject
 
         if (task.Description != newDescription)
             _undoRedo.Do(new EditTaskFieldCommand<string>(task, "description", t => t.Description, (t, v) => t.Description = v, newDescription));
+
+        if (task.Notes != newNotes)
+            _undoRedo.Do(new EditTaskFieldCommand<string>(task, "notes", t => t.Notes, (t, v) => t.Notes = v, newNotes));
 
         if (task.IsMilestone != newIsMilestone)
             _undoRedo.Do(new SetMilestoneCommand(task, newIsMilestone));

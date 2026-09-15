@@ -10,6 +10,7 @@ namespace GanttSquared.Core.Persistence;
 /// </summary>
 public sealed class ProjectFileDto
 {
+    /// <summary>On-disk schema version. Not currently branched on by the loader - bump this and add migration logic in <see cref="ProjectFileSerializer.FromDto"/> if a future breaking change needs one.</summary>
     public int FormatVersion { get; set; } = 1;
 
     public string Name { get; set; } = "Untitled Project";
@@ -23,6 +24,7 @@ public sealed class ProjectFileDto
     public List<ResourceDto> Resources { get; set; } = new();
 }
 
+/// <summary>Serializable mirror of <see cref="GanttTask"/>; field names and meanings match it 1:1.</summary>
 public sealed class TaskDto
 {
     public Guid Id { get; set; }
@@ -43,6 +45,8 @@ public sealed class TaskDto
 
     public string Description { get; set; } = string.Empty;
 
+    public string Notes { get; set; } = string.Empty;
+
     public Guid? ParentId { get; set; }
 
     public int OrderIndex { get; set; }
@@ -52,6 +56,7 @@ public sealed class TaskDto
     public List<Guid> AssignedResourceIds { get; set; } = new();
 }
 
+/// <summary>Serializable mirror of <see cref="DependencyLink"/>; field names and meanings match it 1:1.</summary>
 public sealed class DependencyDto
 {
     public Guid Id { get; set; }
@@ -65,6 +70,7 @@ public sealed class DependencyDto
     public int LagDays { get; set; }
 }
 
+/// <summary>Serializable mirror of <see cref="ProjectResource"/>; field names and meanings match it 1:1.</summary>
 public sealed class ResourceDto
 {
     public Guid Id { get; set; }

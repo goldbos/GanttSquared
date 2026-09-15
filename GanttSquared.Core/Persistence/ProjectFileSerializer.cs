@@ -17,6 +17,7 @@ public static class ProjectFileSerializer
         Converters = { new JsonStringEnumConverter() }
     };
 
+    /// <summary>Serializes a project to indented JSON and writes it to <paramref name="filePath"/>, overwriting any existing file.</summary>
     public static void Save(ProjectModel project, string filePath)
     {
         var dto = ToDto(project);
@@ -24,6 +25,7 @@ public static class ProjectFileSerializer
         File.WriteAllText(filePath, json);
     }
 
+    /// <summary>Reads and deserializes a project from <paramref name="filePath"/>. Throws <see cref="InvalidDataException"/> if the file isn't valid GanttSquared JSON.</summary>
     public static ProjectModel Load(string filePath)
     {
         var json = File.ReadAllText(filePath);
@@ -33,6 +35,7 @@ public static class ProjectFileSerializer
         return FromDto(dto);
     }
 
+    /// <summary>Converts a live project into its plain-DTO on-disk representation, without touching the filesystem.</summary>
     public static ProjectFileDto ToDto(ProjectModel project)
     {
         return new ProjectFileDto
@@ -50,6 +53,7 @@ public static class ProjectFileSerializer
                 Priority = t.Priority,
                 Color = t.Color,
                 Description = t.Description,
+                Notes = t.Notes,
                 ParentId = t.ParentId,
                 OrderIndex = t.OrderIndex,
                 IsExpanded = t.IsExpanded,
@@ -73,6 +77,7 @@ public static class ProjectFileSerializer
         };
     }
 
+    /// <summary>Rebuilds a live project from its DTO representation, restoring tasks (dates/milestone via <see cref="GanttTask.SetDates"/>/<see cref="GanttTask.SetMilestone"/> so their invariants hold) before dependencies, since a dependency needs both endpoint tasks to already exist.</summary>
     public static ProjectModel FromDto(ProjectFileDto dto)
     {
         var project = new ProjectModel
@@ -102,6 +107,7 @@ public static class ProjectFileSerializer
                 Priority = taskDto.Priority,
                 Color = taskDto.Color,
                 Description = taskDto.Description,
+                Notes = taskDto.Notes,
                 ParentId = taskDto.ParentId,
                 IsExpanded = taskDto.IsExpanded,
                 AssignedResourceIds = new List<Guid>(taskDto.AssignedResourceIds)

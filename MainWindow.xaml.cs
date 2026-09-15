@@ -1,9 +1,13 @@
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using GanttSquared.ViewModels;
+using Microsoft.Win32;
 using WinFormsColorDialog = System.Windows.Forms.ColorDialog;
 using DrawingColor = System.Drawing.Color;
 
@@ -54,7 +58,19 @@ namespace GanttSquared
 
             TaskListScroll.ScrollChanged += TaskListScroll_ScrollChanged;
 
+            // Resources tab's allocation timeline mirrors the Gantt tab's list/header/canvas
+            // scroll-sync wiring above, just targeting its own set of controls - see the comments
+            // on the Gantt versions for why each hook exists (they apply here unchanged).
+            ResourceCanvasScroll.ScrollChanged += ResourceCanvasScroll_ScrollChanged;
+            ResourceCanvasScroll.SizeChanged += (_, _) => UpdateTimelineViewportWidth();
+            ResourceCanvasScroll.PreviewMouseWheel += CanvasScroll_PreviewMouseWheel;
+            ResourceCanvasBodyGrid.MouseLeftButtonDown += ResourceCanvasScroll_MouseLeftButtonDown;
+            ResourceCanvasBodyGrid.MouseMove += ResourceCanvasScroll_MouseMove;
+            ResourceCanvasBodyGrid.MouseLeftButtonUp += ResourceCanvasScroll_MouseLeftButtonUp;
+            ResourceListScroll.ScrollChanged += ResourceListScroll_ScrollChanged;
+
             TaskList.SelectionChanged += TaskList_SelectionChanged;
+            TaskList.PreviewMouseWheel += TaskList_PreviewMouseWheel;
             TaskList.PreviewKeyDown += TaskList_PreviewKeyDown;
             TaskList.PreviewMouseLeftButtonDown += TaskList_PreviewMouseLeftButtonDown;
             TaskList.PreviewMouseMove += TaskList_PreviewMouseMove;
@@ -62,7 +78,20 @@ namespace GanttSquared
             TaskList.MouseDoubleClick += TaskList_MouseDoubleClick;
 
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+
+            // Silently re-saves to the current file (only once one exists and there are
+            // unsaved edits) so a long editing session without a manual Ctrl+S still can't lose
+            // more than a couple of minutes of work - on top of, not instead of, the recovery
+            // snapshot above, which covers a project that's never been saved anywhere yet.
+            _autosaveTimer.Tick += (_, _) =>
+            {
+                if (ViewModel.IsDirty && ViewModel.CurrentFilePath is not null)
+                    ViewModel.SaveProjectCommand.Execute(null);
+            };
+            _autosaveTimer.Start();
         }
+
+        private readonly DispatcherTimer _autosaveTimer = new() { Interval = TimeSpan.FromMinutes(2) };
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
@@ -73,19 +102,74 @@ namespace GanttSquared
                 UpdateTimelineViewportWidth();
                 ViewModel.ResetZoomCommand.Execute(null);
             });
+
+            if (MainViewModel.HasPendingRecovery())
+            {
+                var result = MessageBox.Show(
+                    "GanttSquared didn't close properly last time. Restore the unsaved work from before it closed?",
+                    "Restore Unsaved Work?", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                    ViewModel.RestoreFromRecovery();
+                else
+                    ViewModel.DiscardRecovery();
+            }
         }
 
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             if (!ViewModel.ConfirmProceedPastUnsavedChanges("closing"))
+            {
                 e.Cancel = true;
+                return;
+            }
+
+            _autosaveTimer.Stop();
+            ViewModel.DiscardRecovery();
         }
 
         // The timeline's pixels-per-day is always derived from this, so the canvas keeps
         // exactly filling the available width (and showing the same day span) as the window,
-        // the GridSplitter, or an appearing/disappearing scrollbar changes the viewport.
-        private void UpdateTimelineViewportWidth() =>
-            ViewModel.Timeline.ViewportWidth = CanvasScroll.ViewportWidth;
+        // the GridSplitter, or an appearing/disappearing scrollbar changes the viewport. Gantt
+        // and Resources share one Timeline, so this reads whichever of the two canvases is
+        // actually visible right now; a 0 from the other one (Collapsed) is ignored rather than
+        // stomping the real value, and neither fires while on the Dashboard tab.
+        private void UpdateTimelineViewportWidth()
+        {
+            var viewport = ViewModel.ActiveTab == MainTab.Resources ? ResourceCanvasScroll.ViewportWidth : CanvasScroll.ViewportWidth;
+            if (viewport > 0)
+                ViewModel.Timeline.ViewportWidth = viewport;
+        }
+
+        // ---- Jump navigation: center the canvas horizontally on a given date-derived x, used by both the "Today" button and each row's hover jump button ----
+
+        private void JumpToToday_Click(object sender, RoutedEventArgs e) => ScrollCanvasToX(ViewModel.Timeline.TodayX);
+
+        private void ResourceJumpToToday_Click(object sender, RoutedEventArgs e) =>
+            ResourceCanvasScroll.ScrollToHorizontalOffset(Math.Max(0, ViewModel.Timeline.TodayX - ResourceCanvasScroll.ViewportWidth / 2));
+
+        private void JumpToTaskButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement { DataContext: TaskNodeViewModel node })
+                ScrollCanvasToX(node.BarX + node.BarWidth / 2);
+        }
+
+        private void ScrollCanvasToX(double x) =>
+            CanvasScroll.ScrollToHorizontalOffset(Math.Max(0, x - CanvasScroll.ViewportWidth / 2));
+
+        // ---- Hover linkage: hovering a task's row highlights its bar (and vice versa) via the shared TaskNodeViewModel.IsHovered ----
+
+        private void TaskRow_MouseEnter(object sender, MouseEventArgs e)
+        {
+            if (sender is FrameworkElement { DataContext: TaskNodeViewModel node })
+                node.IsHovered = true;
+        }
+
+        private void TaskRow_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (sender is FrameworkElement { DataContext: TaskNodeViewModel node })
+                node.IsHovered = false;
+        }
 
         // ---- Vertical scroll sync between the task list and the canvas; horizontal sync from the canvas to the (non-interactive) header ----
 
@@ -113,6 +197,35 @@ namespace GanttSquared
             _syncingScroll = true;
             if (e.VerticalChange != 0)
                 CanvasScroll.ScrollToVerticalOffset(e.VerticalOffset);
+            _syncingScroll = false;
+        }
+
+        // ---- Same vertical/horizontal scroll sync as above, for the Resources tab's name list + canvas + header ----
+
+        private void ResourceCanvasScroll_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            if (e.ViewportWidthChange != 0)
+                UpdateTimelineViewportWidth();
+
+            if (_syncingScroll)
+                return;
+
+            _syncingScroll = true;
+            if (e.VerticalChange != 0)
+                ResourceListScroll.ScrollToVerticalOffset(e.VerticalOffset);
+            if (e.HorizontalChange != 0)
+                ResourceHeaderScroll.ScrollToHorizontalOffset(e.HorizontalOffset);
+            _syncingScroll = false;
+        }
+
+        private void ResourceListScroll_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            if (_syncingScroll)
+                return;
+
+            _syncingScroll = true;
+            if (e.VerticalChange != 0)
+                ResourceCanvasScroll.ScrollToVerticalOffset(e.VerticalOffset);
             _syncingScroll = false;
         }
 
@@ -159,6 +272,43 @@ namespace GanttSquared
         private void CanvasScroll_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             CanvasBodyGrid.ReleaseMouseCapture();
+            _panStartPoint = null;
+            _isPanning = false;
+        }
+
+        // ---- Same click-drag panning as above, for the Resources tab's canvas. Shares the
+        // _panStartPoint/_panStartH/_panStartV/_isPanning fields with the Gantt version above -
+        // safe since only one tab's canvas is ever visible/interactive at a time. ----
+
+        private void ResourceCanvasScroll_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _panStartPoint = e.GetPosition(ResourceCanvasScroll);
+            _panStartH = ResourceCanvasScroll.HorizontalOffset;
+            _panStartV = ResourceCanvasScroll.VerticalOffset;
+            _isPanning = false;
+            ResourceCanvasBodyGrid.CaptureMouse();
+        }
+
+        private void ResourceCanvasScroll_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_panStartPoint is null || e.LeftButton != MouseButtonState.Pressed)
+                return;
+
+            var pos = e.GetPosition(ResourceCanvasScroll);
+            var dx = pos.X - _panStartPoint.Value.X;
+            var dy = pos.Y - _panStartPoint.Value.Y;
+
+            if (!_isPanning && Math.Abs(dx) < 3 && Math.Abs(dy) < 3)
+                return;
+
+            _isPanning = true;
+            ResourceCanvasScroll.ScrollToHorizontalOffset(_panStartH - dx);
+            ResourceCanvasScroll.ScrollToVerticalOffset(_panStartV - dy);
+        }
+
+        private void ResourceCanvasScroll_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            ResourceCanvasBodyGrid.ReleaseMouseCapture();
             _panStartPoint = null;
             _isPanning = false;
         }
@@ -296,6 +446,16 @@ namespace GanttSquared
             return found;
         }
 
+        // A dependency line has no other affordance to remove it by (no context menu
+        // infrastructure exists yet), so a direct click deletes it immediately - safe since
+        // it's a single undoable command, same as every other edit here.
+        private void DependencyLine_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement { DataContext: DependencyLineViewModel link })
+                ViewModel.RemoveDependency(link.DependencyId);
+            e.Handled = true;
+        }
+
         // ---- Task list: multi-select sync, keyboard nav, inline rename, drag-to-reparent ----
 
         private void TaskList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -308,11 +468,46 @@ namespace GanttSquared
             _syncingSelection = false;
         }
 
+        // TaskList's own internal ScrollViewer part has scrolling turned off (see the XAML
+        // comment on the ListBox) so the outer TaskListScroll can be the one and only source of
+        // truth for vertical position, kept in sync with the canvas - but that means a mouse
+        // wheel over the list would otherwise just hit that inert internal scroller and go
+        // nowhere. Forward it to the outer one directly instead.
+        private void TaskList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            // e.Delta is +/-120 per notch; scale it down so one notch feels like a normal few-line
+            // scroll instead of jumping ~120px (a raw 1:1 mapping was reported as far too fast).
+            TaskListScroll.ScrollToVerticalOffset(TaskListScroll.VerticalOffset - e.Delta / 3.0);
+            e.Handled = true;
+        }
+
         private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(MainViewModel.IsDarkTheme))
             {
                 ApplyTheme(ViewModel.IsDarkTheme);
+
+                // Elements inside a Popup don't get the live DynamicResource re-resolution that
+                // in-tree elements do - a Popup's content is realized once against whatever the
+                // resource dictionary held at that moment, and later mutations to an existing
+                // entry (ApplyTheme replaces brush instances in place, same technique as
+                // everywhere else in this window) don't repropagate into it. Even closing and
+                // reopening the Popup doesn't help, confirmed live: WPF keeps the same child
+                // visual alive underneath and never re-triggers resource lookup on it. Detaching
+                // and reattaching the Child forces a fresh Loaded pass, which does re-resolve
+                // every DynamicResource inside it against the now-current brushes.
+                var popupContent = ProjectPropertiesPopup.Child;
+                ProjectPropertiesPopup.Child = null;
+                ProjectPropertiesPopup.Child = popupContent;
+                return;
+            }
+
+            if (e.PropertyName == nameof(MainViewModel.ActiveTab))
+            {
+                // Whichever canvas just became visible gets its own SizeChanged as it's laid
+                // out, but that can land before the tab switch's layout pass is fully settled -
+                // same one-dispatcher-cycle deferral as the initial load, for the same reason.
+                Dispatcher.BeginInvoke(UpdateTimelineViewportWidth);
                 return;
             }
 
@@ -332,16 +527,33 @@ namespace GanttSquared
         // unrelated bindings; this reaches the same result without it.
         private static readonly (string Key, string Dark, string Light)[] ThemeBrushes =
         {
-            ("WindowBackgroundBrush", "#FF17181C", "#FFF3F4F6"),
-            ("PanelBrush", "#FF1E1F24", "#FFFFFFFF"),
-            ("PanelAltBrush", "#FF24252B", "#FFF3F4F6"),
-            ("BorderBrush2", "#FF34353D", "#FFE2E4E9"),
+            ("WindowBackgroundBrush", "#FF101114", "#FFE7E9ED"),
+            ("PanelBrush", "#FF191A1F", "#FFFFFFFF"),
+            ("PanelAltBrush", "#FF212228", "#FFEFF1F5"),
+            ("BorderBrush2", "#FF3C3E4A", "#FFD6D9E1"),
             ("TextBrush", "#FFE8E9ED", "#FF1F2328"),
             ("MutedTextBrush", "#FF9AA0AC", "#FF6B7280"),
-            ("RowAltBrush", "#FF212227", "#FFF8F9FB"),
-            ("FieldBackgroundBrush", "#FF2A2B32", "#FFF3F4F6"),
-            ("CanvasBackgroundBrush", "#FF19191E", "#FFFAFAFB"),
+            ("RowAltBrush", "#FF23252E", "#FFE9EBF0"),
+            ("SecondaryButtonBrush", "#FF3A3B42", "#FFDDE1E8"),
+            ("FieldBackgroundBrush", "#FF2C2E38", "#FFF3F5F8"),
+            ("CanvasBackgroundBrush", "#FF121319", "#FFEFF1F5"),
             ("LinkLineBrush", "#FF8B94A6", "#FF475569"),
+        };
+
+        // These SystemColors keys are overridden once in XAML (see the comment above them there)
+        // so the TreeView's selected-but-unfocused row and the DatePicker calendar's built-in
+        // header/nav buttons stay legible instead of falling back to the system theme's default
+        // grey. They were hardcoded to dark-theme colors only, so switching to light theme left
+        // them stuck dark - a dark selection box or a dark nav button sitting inside an otherwise
+        // light popup. Swapping them here alongside everything else fixes that clash.
+        private static readonly (object Key, string Dark, string Light)[] SystemColorBrushes =
+        {
+            (SystemColors.ControlBrushKey, "#FF3C3E4A", "#FFD6D9E1"),
+            (SystemColors.ControlTextBrushKey, "#FFE8E9ED", "#FF1F2328"),
+            (SystemColors.InactiveSelectionHighlightBrushKey, "#FF3C3E4A", "#FFDDE3EF"),
+            (SystemColors.InactiveSelectionHighlightTextBrushKey, "#FFE8E9ED", "#FF1F2328"),
+            (SystemColors.WindowTextBrushKey, "#FFE8E9ED", "#FF1F2328"),
+            (SystemColors.GrayTextBrushKey, "#FF9AA0AC", "#FF6B7280"),
         };
 
         private void ApplyTheme(bool isDark)
@@ -355,6 +567,12 @@ namespace GanttSquared
             // consumers keep the reference they first resolved forever, so this technique only
             // works because nothing here uses StaticResource for these keys.
             foreach (var (key, dark, light) in ThemeBrushes)
+            {
+                var color = (Color)ColorConverter.ConvertFromString(isDark ? dark : light);
+                Resources[key] = new SolidColorBrush(color);
+            }
+
+            foreach (var (key, dark, light) in SystemColorBrushes)
             {
                 var color = (Color)ColorConverter.ConvertFromString(isDark ? dark : light);
                 Resources[key] = new SolidColorBrush(color);
@@ -553,6 +771,60 @@ namespace GanttSquared
 
             var picked = dialog.Color;
             properties.Color = $"#{picked.R:X2}{picked.G:X2}{picked.B:X2}";
+        }
+
+        // Renders the timeline header and the full (unclipped) canvas body - both already laid
+        // out at their true full-project size regardless of the current scroll position, since
+        // that's what CanvasWidth/CanvasHeight bind their Canvas panels to - into one PNG via
+        // VisualBrush, which captures a Visual's rendered content independent of any ancestor
+        // ScrollViewer's clip. The task list isn't included: it's a virtualizing ListBox that
+        // only realizes on-screen rows, so it can't be captured full-height this way, but every
+        // bar already carries its own task name as an on-bar label, so the image is still
+        // self-describing without it.
+        private void ExportChart_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new SaveFileDialog
+            {
+                Filter = "PNG Image (*.png)|*.png|PDF Document (*.pdf)|*.pdf",
+                DefaultExt = ".png",
+                FileName = ViewModel.Project.Name
+            };
+
+            if (dialog.ShowDialog() != true)
+                return;
+
+            const int headerHeight = 32;
+            var width = (int)Math.Ceiling(Math.Max(CanvasBodyGrid.ActualWidth, 1));
+            var bodyHeight = (int)Math.Ceiling(Math.Max(CanvasBodyGrid.ActualHeight, 1));
+            var totalHeight = headerHeight + bodyHeight;
+
+            var target = new RenderTargetBitmap(width, totalHeight, 96, 96, PixelFormats.Pbgra32);
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                if (Resources["CanvasBackgroundBrush"] is Brush background)
+                    dc.DrawRectangle(background, null, new Rect(0, 0, width, totalHeight));
+                dc.DrawRectangle(new VisualBrush(HeaderContent), null, new Rect(0, 0, width, headerHeight));
+                dc.DrawRectangle(new VisualBrush(CanvasBodyGrid), null, new Rect(0, headerHeight, width, bodyHeight));
+            }
+            target.Render(visual);
+
+            try
+            {
+                if (Path.GetExtension(dialog.FileName).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+                    PdfExport.WriteSinglePageImagePdf(target, dialog.FileName);
+                else
+                {
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(target));
+                    using var stream = File.Create(dialog.FileName);
+                    encoder.Save(stream);
+                }
+            }
+            catch (IOException ex)
+            {
+                MessageBox.Show($"Couldn't save the exported image:\n\n{ex.Message}", "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }

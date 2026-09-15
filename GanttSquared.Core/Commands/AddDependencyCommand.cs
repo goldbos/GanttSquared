@@ -2,6 +2,7 @@ using GanttSquared.Core.Model;
 
 namespace GanttSquared.Core.Commands;
 
+/// <summary>Adds a dependency link between two tasks; undoing removes it. See <see cref="ProjectModel.AddDependency"/> for the validation this enforces (no cycles, no duplicates).</summary>
 public sealed class AddDependencyCommand : IUndoableCommand
 {
     private readonly ProjectModel _project;

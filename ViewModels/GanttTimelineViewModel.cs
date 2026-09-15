@@ -3,6 +3,7 @@ using GanttSquared.Core.Model;
 
 namespace GanttSquared.ViewModels;
 
+/// <summary>One gridline/header label on the timeline: its pixel position, display text, and the date it represents.</summary>
 public sealed record TimelineTick(double X, string Label, DateOnly Date);
 
 /// <summary>Auto switches between daily/weekly ticks based on zoom (the previous, only behavior); Day/Week force one regardless of zoom.</summary>
@@ -76,6 +77,7 @@ public sealed partial class GanttTimelineViewModel : ObservableObject
         }
     }
 
+    /// <summary>DateTime-typed wrapper around RangeEnd - see <see cref="RangeStartDate"/> for why.</summary>
     public DateTime RangeEndDate
     {
         get => RangeEnd.ToDateTime(TimeOnly.MinValue);
@@ -94,16 +96,20 @@ public sealed partial class GanttTimelineViewModel : ObservableObject
     /// <summary>Never less than the viewport width, so the canvas background/gridlines always reach the right edge even for a short project.</summary>
     public double TotalWidth => Math.Max(ViewportWidth, (RangeEnd.DayNumber - RangeStart.DayNumber) * DayWidth);
 
+    /// <summary>Pixel X position of the "today" marker line.</summary>
     public double TodayX => DateToX(DateOnly.FromDateTime(DateTime.Today));
 
+    /// <summary>Converts a date to its pixel X position on the canvas, relative to RangeStart.</summary>
     public double DateToX(DateOnly date) => (date.DayNumber - RangeStart.DayNumber) * DayWidth;
 
     [NotifyPropertyChangedFor(nameof(Ticks))]
     [ObservableProperty]
-    private TimelineTickMode _tickMode = TimelineTickMode.Auto;
+    private TimelineTickMode _tickMode = TimelineTickMode.Week;
 
+    /// <summary>Every tick mode, for binding the Project Properties flyout's mode picker.</summary>
     public IReadOnlyList<TimelineTickMode> TickModes { get; } = Enum.GetValues<TimelineTickMode>();
 
+    /// <summary>The gridlines/header labels for the current range, tick mode, and zoom level.</summary>
     public IReadOnlyList<TimelineTick> Ticks => BuildTicks();
 
     /// <summary>Widens the visible date range (with padding) so every task fits, if any exist.</summary>
@@ -117,8 +123,10 @@ public sealed partial class GanttTimelineViewModel : ObservableObject
         RangeEnd = list.Max(t => t.EndDate).AddDays(PaddingDays);
     }
 
+    /// <summary>Shows fewer days at once (bigger bars/gridlines), down to <see cref="MinVisibleDays"/>.</summary>
     public void ZoomIn() => VisibleDayCount = Math.Max(MinVisibleDays, VisibleDayCount / ZoomStepFactor);
 
+    /// <summary>Shows more days at once (smaller bars/gridlines), up to <see cref="MaxVisibleDays"/>.</summary>
     public void ZoomOut() => VisibleDayCount = Math.Min(MaxVisibleDays, VisibleDayCount * ZoomStepFactor);
 
     /// <summary>Resets to a condensed default: roughly a month as a rolling span of days, not a calendar month.</summary>

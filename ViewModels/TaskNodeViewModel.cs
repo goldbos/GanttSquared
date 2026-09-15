@@ -48,8 +48,16 @@ public sealed partial class TaskNodeViewModel : ObservableObject
     [ObservableProperty]
     private bool _isOverdue;
 
+    /// <summary>True when this task shares an assigned resource with another visible task whose date range overlaps it; set by MainViewModel.RecomputeLayout.</summary>
+    [ObservableProperty]
+    private bool _isResourceConflict;
+
     [ObservableProperty]
     private bool _isEditingName;
+
+    /// <summary>True while hovering this task's row in the list or its bar on the canvas; drives a highlight on the other side plus the list row's jump-to-chart button.</summary>
+    [ObservableProperty]
+    private bool _isHovered;
 
     /// <summary>WBS code (e.g. "2.1.3"), set by MainViewModel while building the tree; empty when the project hasn't opted into WBS numbering.</summary>
     [ObservableProperty]
@@ -113,7 +121,9 @@ public sealed partial class TaskNodeViewModel : ObservableObject
 
     // Dark-theme variants are a notch lighter/more saturated than the light-theme ones since
     // they sit on a near-black canvas, where the light-theme colors read as dull/muddy.
-    private static string DefaultColorFor(PriorityLevel priority) => IsDarkTheme
+    // Internal (not private) so MainViewModel can reuse it for the Resources tab's allocation
+    // bars, which need the same priority-color fallback a task's own Gantt bar uses.
+    internal static string DefaultColorFor(PriorityLevel priority) => IsDarkTheme
         ? priority switch
         {
             PriorityLevel.Low => "#FF8B95A5",

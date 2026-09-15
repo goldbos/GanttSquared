@@ -13,8 +13,10 @@ namespace GanttSquared.Core.Persistence;
 /// </summary>
 public static class GanttProjectImporter
 {
+    /// <summary>Reads and imports a .gan file from disk.</summary>
     public static ProjectModel Import(string filePath) => Import(XDocument.Load(filePath));
 
+    /// <summary>Imports an already-loaded .gan document. Throws <see cref="InvalidDataException"/> if the root element isn't &lt;project&gt;.</summary>
     public static ProjectModel Import(XDocument document)
     {
         var root = document.Root;
