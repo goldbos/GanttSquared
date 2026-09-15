@@ -49,6 +49,16 @@ public sealed class ExpandGlyphConverter : IMultiValueConverter
         throw new NotSupportedException();
 }
 
+/// <summary>Labels the Project Properties panel's theme-toggle button with the mode clicking it switches TO.</summary>
+public sealed class DarkThemeLabelConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is true ? "Light Mode" : "Dark Mode";
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
 /// <summary>Visible only when every bound value is boolean true - e.g. "hovering AND not a milestone".</summary>
 public sealed class AllTrueToVisibilityConverter : IMultiValueConverter
 {

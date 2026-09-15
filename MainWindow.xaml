@@ -26,6 +26,7 @@
         <conv:DoubleToLeftMarginConverter x:Key="DoubleToLeftMargin"/>
         <conv:ExpandGlyphConverter x:Key="ExpandGlyph"/>
         <conv:AllTrueToVisibilityConverter x:Key="AllTrueToVisibility"/>
+        <conv:DarkThemeLabelConverter x:Key="DarkThemeLabel"/>
         <!--
           Theme toggle: MainWindow.xaml.cs's ToggleTheme mutates each of these SolidColorBrush
           instances' own Color property rather than swapping which resource a key points to.
@@ -84,6 +85,36 @@
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.35"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Same look as RailButton, but for a ToggleButton (Project Properties) - can't BasedOn
+             RailButton since Button and ToggleButton are siblings under ButtonBase, not one a
+             subtype of the other, so the template is duplicated with an added IsChecked trigger. -->
+        <Style x:Key="RailToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Margin" Value="6,3"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#FF2E2F37"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#FF2E2F37"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -639,6 +670,14 @@
                         <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.4"
                               Data="M 1,1 L 10,1 L 13,4 L 13,13 L 1,13 Z M 3,1 L 3,5 L 10,5 L 10,1 M 3,13 L 3,8 L 10,8 L 10,13"/>
                     </Button>
+                    <ToggleButton x:Name="ProjectPropertiesToggle" Style="{StaticResource RailToggleButtonStyle}" ToolTip="Project Properties">
+                        <Grid Width="14" Height="14">
+                            <Path Stroke="{DynamicResource TextBrush}" StrokeThickness="1.4" Data="M 0,3 L 14,3 M 0,7.5 L 14,7.5 M 0,12 L 14,12"/>
+                            <Ellipse Width="4" Height="4" Fill="{DynamicResource TextBrush}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,1,0,0"/>
+                            <Ellipse Width="4" Height="4" Fill="{DynamicResource TextBrush}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,5.5,0,0"/>
+                            <Ellipse Width="4" Height="4" Fill="{DynamicResource TextBrush}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4,10,0,0"/>
+                        </Grid>
+                    </ToggleButton>
 
                     <Border Height="1" Margin="8,6" Background="{DynamicResource BorderBrush2}"/>
 
@@ -669,36 +708,6 @@
                         <Path Width="15" Height="12" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.6"
                               Data="M 14,3 C 9,-1 2,0 1,6 C 2,11 9,12 14,8 M 14,8 L 14,4 M 14,8 L 10,8"/>
                     </Button>
-                    <Button Style="{StaticResource RailButton}" Command="{Binding ToggleThemeCommand}" ToolTip="Toggle Dark/Light Theme">
-                        <Grid>
-                            <!-- Sun: shown in dark mode - click to switch to light. -->
-                            <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.3"
-                                  Data="M 10,7 A 3,3 0 1 1 4,7 A 3,3 0 1 1 10,7 M 7,0.5 L 7,2 M 7,12 L 7,13.5 M 0.5,7 L 2,7 M 12,7 L 13.5,7 M 2.3,2.3 L 3.3,3.3 M 10.7,10.7 L 11.7,11.7 M 2.3,11.7 L 3.3,10.7 M 10.7,3.3 L 11.7,2.3">
-                                <Path.Style>
-                                    <Style TargetType="Path">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsDarkTheme}" Value="False">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Path.Style>
-                            </Path>
-                            <!-- Moon: shown in light mode - click to switch to dark. -->
-                            <Path Width="12" Height="12" Stretch="Uniform" Fill="{DynamicResource TextBrush}"
-                                  Data="M 9,1.5 A 5.5,5.5 0 1 0 9,12.5 A 4,4 0 1 1 9,1.5 Z">
-                                <Path.Style>
-                                    <Style TargetType="Path">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsDarkTheme}" Value="True">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Path.Style>
-                            </Path>
-                        </Grid>
-                    </Button>
                     <Button Style="{StaticResource RailButton}" Command="{Binding ToggleDensityCommand}" ToolTip="Toggle Row Density (Compact/Comfortable)">
                         <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.6"
                               Data="M 0,2 L 14,2 M 0,7 L 14,7 M 0,12 L 14,12">
@@ -716,6 +725,51 @@
                 </StackPanel>
             </DockPanel>
         </Border>
+
+        <!-- Project properties: a lightweight settings flyout (not a persistent panel like the
+             task Properties panel on the right, since these are occasional, whole-project
+             settings rather than something edited per-task) anchored to the rail's gear toggle. -->
+        <!-- StaysOpen="True": the DatePickers' calendar and the ComboBox's dropdown are each
+             their own nested Popup, and a StaysOpen="False" outer Popup treats a click inside a
+             nested one as "outside" and closes itself before the click reaches it. Dismissed by
+             toggling the gear button again instead of a click-away. -->
+        <Popup PlacementTarget="{Binding ElementName=ProjectPropertiesToggle}" Placement="Right"
+               IsOpen="{Binding IsChecked, ElementName=ProjectPropertiesToggle}"
+               StaysOpen="True" AllowsTransparency="True" PopupAnimation="Fade">
+            <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush2}"
+                    BorderThickness="1" CornerRadius="8" Padding="16" Width="300">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.4"/>
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="Project Properties" Foreground="{DynamicResource TextBrush}" FontSize="14" FontWeight="SemiBold"/>
+
+                    <TextBlock Text="TIMELINE" Style="{StaticResource PanelLabel}" Margin="0,14,0,4"/>
+                    <TextBlock Text="Date range" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,0,0,4"/>
+                    <StackPanel Orientation="Horizontal">
+                        <DatePicker SelectedDate="{Binding Timeline.RangeStartDate}" Width="122" Height="26" FontSize="11" ToolTip="Timeline start date"/>
+                        <TextBlock Text="&#8594;" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="6,0,6,0"/>
+                        <DatePicker SelectedDate="{Binding Timeline.RangeEndDate}" Width="122" Height="26" FontSize="11" ToolTip="Timeline end date"/>
+                    </StackPanel>
+
+                    <TextBlock Text="Tick marks" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,12,0,4"/>
+                    <ComboBox ItemsSource="{Binding Timeline.TickModes}" SelectedItem="{Binding Timeline.TickMode}" Height="28"
+                              ToolTip="Auto switches between daily and weekly tick marks based on zoom; Day/Week always show that granularity"/>
+
+                    <TextBlock Text="APPEARANCE" Style="{StaticResource PanelLabel}" Margin="0,16,0,4"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Theme" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Style="{StaticResource ResetZoomButtonStyle}" Command="{Binding ToggleThemeCommand}">
+                            <TextBlock Text="{Binding IsDarkTheme, Converter={StaticResource DarkThemeLabel}}"/>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Popup>
 
         <!-- Top bar -->
         <Border Grid.Column="1" Grid.ColumnSpan="5" Grid.Row="0" Background="{DynamicResource PanelBrush}"
@@ -805,14 +859,6 @@
                     <RowDefinition Height="32"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-
-                <!-- Timeline date range: directly sets how much calendar time the canvas spans, independent of zoom (which only changes how many of those days fit on screen at once). -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,0,0">
-                    <TextBlock Text="Range" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <DatePicker SelectedDate="{Binding Timeline.RangeStartDate}" Width="110" Height="22" FontSize="11" ToolTip="Timeline start date"/>
-                    <TextBlock Text="&#8594;" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="6,0,6,0"/>
-                    <DatePicker SelectedDate="{Binding Timeline.RangeEndDate}" Width="110" Height="22" FontSize="11" ToolTip="Timeline end date"/>
-                </StackPanel>
 
                 <!-- Zoom toolbar -->
                 <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0">

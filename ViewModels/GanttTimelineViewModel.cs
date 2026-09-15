@@ -5,6 +5,9 @@ namespace GanttSquared.ViewModels;
 
 public sealed record TimelineTick(double X, string Label, DateOnly Date);
 
+/// <summary>Auto switches between daily/weekly ticks based on zoom (the previous, only behavior); Day/Week force one regardless of zoom.</summary>
+public enum TimelineTickMode { Auto, Day, Week }
+
 /// <summary>
 /// Maps project dates to horizontal pixel positions on the Gantt canvas and drives the
 /// timeline header. Pixels-per-day is always derived from the live viewport width divided by
@@ -95,6 +98,12 @@ public sealed partial class GanttTimelineViewModel : ObservableObject
 
     public double DateToX(DateOnly date) => (date.DayNumber - RangeStart.DayNumber) * DayWidth;
 
+    [NotifyPropertyChangedFor(nameof(Ticks))]
+    [ObservableProperty]
+    private TimelineTickMode _tickMode = TimelineTickMode.Auto;
+
+    public IReadOnlyList<TimelineTickMode> TickModes { get; } = Enum.GetValues<TimelineTickMode>();
+
     public IReadOnlyList<TimelineTick> Ticks => BuildTicks();
 
     /// <summary>Widens the visible date range (with padding) so every task fits, if any exist.</summary>
@@ -119,7 +128,14 @@ public sealed partial class GanttTimelineViewModel : ObservableObject
     {
         var ticks = new List<TimelineTick>();
 
-        if (DayWidth < WeekTickThreshold)
+        var useWeekly = TickMode switch
+        {
+            TimelineTickMode.Day => false,
+            TimelineTickMode.Week => true,
+            _ => DayWidth < WeekTickThreshold
+        };
+
+        if (useWeekly)
         {
             var cursor = StartOfWeek(RangeStart);
             while (cursor < RangeEnd)
