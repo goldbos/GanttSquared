@@ -68,6 +68,7 @@ namespace GanttSquared
             ResourceCanvasBodyGrid.MouseMove += ResourceCanvasScroll_MouseMove;
             ResourceCanvasBodyGrid.MouseLeftButtonUp += ResourceCanvasScroll_MouseLeftButtonUp;
             ResourceListScroll.ScrollChanged += ResourceListScroll_ScrollChanged;
+            ResourceListScroll.PreviewMouseWheel += CanvasScroll_PreviewMouseWheel;
 
             TaskList.SelectionChanged += TaskList_SelectionChanged;
             TaskList.PreviewMouseWheel += TaskList_PreviewMouseWheel;
@@ -141,9 +142,82 @@ namespace GanttSquared
                 ViewModel.Timeline.ViewportWidth = viewport;
         }
 
+        // ---- "Virtually infinite" horizontal scroll: rather than truly virtualizing the canvas
+        // (rendering only the visible date window), which would mean reworking every layer of
+        // the chart - gridlines, row stripes, bars, dependency lines, and the Resources tab's
+        // mirror of all of that - this just widens Timeline.RangeStart/RangeEnd by a chunk
+        // whenever the user scrolls within one viewport-width of either edge. Everything already
+        // reacts to a range change (RecomputeLayout/RebuildResources via Timeline.PropertyChanged),
+        // so this is the cheap 90% of the benefit: normal use never hits a hard edge, at the cost
+        // of accumulating more realized elements the further someone scrolls in one sitting -
+        // fine for the day/week/month distances a project timeline actually gets scrolled. ----
+
+        private const int TimelineRangeExtensionDays = 30;
+        private bool _isExtendingTimelineRange;
+
+        // Keying this off raw offset ("am I near 0?") rather than direction was wrong: offset 0
+        // is also just where every canvas *starts*, before the user has touched it - window
+        // load, a tab switch, a zoom reset all land there too, and each one was reliably
+        // mistaken for "user scrolled to the left edge" and yanked RangeStart back by a month
+        // before anyone had scrolled at all. Requiring e.HorizontalChange to actually be moving
+        // toward that edge (not just resting there) is what actually distinguishes the two.
+        private void MaybeExtendTimelineRange(ScrollViewer scroll, ScrollChangedEventArgs e)
+        {
+            // Re-entrancy guard: widening RangeStart resizes the canvas, which raises another
+            // ScrollChanged before the compensating offset (below) has been applied.
+            if (_isExtendingTimelineRange)
+                return;
+
+            // Nothing to approach the edge of if the whole range already fits on screen.
+            if (scroll.ViewportWidth <= 0 || scroll.ExtentWidth <= scroll.ViewportWidth)
+                return;
+
+            var timeline = ViewModel.Timeline;
+
+            if (e.HorizontalChange < 0 && scroll.HorizontalOffset < scroll.ViewportWidth)
+            {
+                // Widening the start moves RangeStart earlier, which shifts every existing
+                // element's X right (DateToX is relative to RangeStart) - so the view would
+                // otherwise jump. Compensate by scrolling further right by the same pixel
+                // amount, deferred until the layout pass triggered by the range change has
+                // actually resized the canvas (ExtentWidth doesn't update synchronously).
+                _isExtendingTimelineRange = true;
+                var previousStart = timeline.RangeStart;
+                timeline.RangeStart = previousStart.AddDays(-TimelineRangeExtensionDays);
+                var addedWidth = (previousStart.DayNumber - timeline.RangeStart.DayNumber) * timeline.DayWidth;
+
+                Dispatcher.BeginInvoke(() =>
+                {
+                    scroll.ScrollToHorizontalOffset(scroll.HorizontalOffset + addedWidth);
+                    _isExtendingTimelineRange = false;
+                }, DispatcherPriority.Render);
+            }
+            else if (e.HorizontalChange > 0 && scroll.ExtentWidth - scroll.HorizontalOffset - scroll.ViewportWidth < scroll.ViewportWidth)
+            {
+                // Widening the end only grows content further right - existing X positions
+                // (relative to the unchanged RangeStart) don't move, so no offset compensation.
+                timeline.RangeEnd = timeline.RangeEnd.AddDays(TimelineRangeExtensionDays);
+            }
+        }
+
         // ---- Jump navigation: center the canvas horizontally on a given date-derived x, used by both the "Today" button and each row's hover jump button ----
 
         private void JumpToToday_Click(object sender, RoutedEventArgs e) => ScrollCanvasToX(ViewModel.Timeline.TodayX);
+
+        // Enter commits the rename by moving focus out (LostFocus is what ProjectName's binding
+        // updates on). Escape discards it: the Text is reset to the last-committed ProjectName
+        // first, since ClearFocus alone would still commit whatever's currently typed.
+        private void ProjectNameTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape && sender is TextBox textBox)
+                textBox.Text = ViewModel.ProjectName;
+
+            if (e.Key is Key.Enter or Key.Escape)
+            {
+                Keyboard.ClearFocus();
+                e.Handled = true;
+            }
+        }
 
         private void ResourceJumpToToday_Click(object sender, RoutedEventArgs e) =>
             ResourceCanvasScroll.ScrollToHorizontalOffset(Math.Max(0, ViewModel.Timeline.TodayX - ResourceCanvasScroll.ViewportWidth / 2));
@@ -178,6 +252,8 @@ namespace GanttSquared
             if (e.ViewportWidthChange != 0)
                 UpdateTimelineViewportWidth();
 
+            MaybeExtendTimelineRange(CanvasScroll, e);
+
             if (_syncingScroll)
                 return;
 
@@ -206,6 +282,8 @@ namespace GanttSquared
         {
             if (e.ViewportWidthChange != 0)
                 UpdateTimelineViewportWidth();
+
+            MaybeExtendTimelineRange(ResourceCanvasScroll, e);
 
             if (_syncingScroll)
                 return;
@@ -475,6 +553,19 @@ namespace GanttSquared
         // nowhere. Forward it to the outer one directly instead.
         private void TaskList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
+            // Ctrl+scroll zooms here too, matching the canvas - the task list and canvas read as
+            // one view (their rows line up), so the same gesture should do the same thing
+            // regardless of which side of the splitter the cursor happens to be on.
+            if (Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                if (e.Delta > 0)
+                    ViewModel.Timeline.ZoomIn();
+                else
+                    ViewModel.Timeline.ZoomOut();
+                e.Handled = true;
+                return;
+            }
+
             // e.Delta is +/-120 per notch; scale it down so one notch feels like a normal few-line
             // scroll instead of jumping ~120px (a raw 1:1 mapping was reported as far too fast).
             TaskListScroll.ScrollToVerticalOffset(TaskListScroll.VerticalOffset - e.Delta / 3.0);
@@ -486,19 +577,6 @@ namespace GanttSquared
             if (e.PropertyName == nameof(MainViewModel.IsDarkTheme))
             {
                 ApplyTheme(ViewModel.IsDarkTheme);
-
-                // Elements inside a Popup don't get the live DynamicResource re-resolution that
-                // in-tree elements do - a Popup's content is realized once against whatever the
-                // resource dictionary held at that moment, and later mutations to an existing
-                // entry (ApplyTheme replaces brush instances in place, same technique as
-                // everywhere else in this window) don't repropagate into it. Even closing and
-                // reopening the Popup doesn't help, confirmed live: WPF keeps the same child
-                // visual alive underneath and never re-triggers resource lookup on it. Detaching
-                // and reattaching the Child forces a fresh Loaded pass, which does re-resolve
-                // every DynamicResource inside it against the now-current brushes.
-                var popupContent = ProjectPropertiesPopup.Child;
-                ProjectPropertiesPopup.Child = null;
-                ProjectPropertiesPopup.Child = popupContent;
                 return;
             }
 
@@ -533,7 +611,7 @@ namespace GanttSquared
             ("BorderBrush2", "#FF3C3E4A", "#FFD6D9E1"),
             ("TextBrush", "#FFE8E9ED", "#FF1F2328"),
             ("MutedTextBrush", "#FF9AA0AC", "#FF6B7280"),
-            ("RowAltBrush", "#FF23252E", "#FFE9EBF0"),
+            ("RowAltBrush", "#FF2E313D", "#FFDFE3EC"),
             ("SecondaryButtonBrush", "#FF3A3B42", "#FFDDE1E8"),
             ("FieldBackgroundBrush", "#FF2C2E38", "#FFF3F5F8"),
             ("CanvasBackgroundBrush", "#FF121319", "#FFEFF1F5"),

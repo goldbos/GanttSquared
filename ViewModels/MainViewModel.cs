@@ -25,22 +25,22 @@ public sealed partial class MainViewModel : ObservableObject
 
     public TaskPropertiesViewModel Properties { get; }
 
-    public ObservableCollection<TaskNodeViewModel> RootNodes { get; } = new();
+    public BulkObservableCollection<TaskNodeViewModel> RootNodes { get; } = new();
 
     /// <summary>Flattened, expand/collapse-aware row order shared by the task list and the Gantt canvas so their rows line up.</summary>
-    public ObservableCollection<TaskNodeViewModel> VisibleRows { get; } = new();
+    public BulkObservableCollection<TaskNodeViewModel> VisibleRows { get; } = new();
 
-    public ObservableCollection<DependencyLineViewModel> DependencyLines { get; } = new();
+    public BulkObservableCollection<DependencyLineViewModel> DependencyLines { get; } = new();
 
     /// <summary>Every currently selected row; use this for bulk actions. SelectedNode mirrors it only when exactly one row is selected.</summary>
     public ObservableCollection<TaskNodeViewModel> SelectedNodes { get; } = new();
 
     public GanttTimelineViewModel Timeline { get; } = new();
 
-    public ObservableCollection<ResourceRowViewModel> Resources { get; } = new();
+    public BulkObservableCollection<ResourceRowViewModel> Resources { get; } = new();
 
     /// <summary>Every allocation bar across every resource, flat - mirrors how VisibleRows itself carries the Gantt bars' positions, rather than nesting bars inside each ResourceRowViewModel.</summary>
-    public ObservableCollection<ResourceAllocationBarViewModel> ResourceAllocationBars { get; } = new();
+    public BulkObservableCollection<ResourceAllocationBarViewModel> ResourceAllocationBars { get; } = new();
 
     /// <summary>Width of the Resources tab's allocation timeline canvas - same date range/zoom as the Gantt canvas, since both read the same Timeline instance.</summary>
     public double ResourceCanvasWidth => Timeline.TotalWidth;
@@ -182,6 +182,40 @@ public sealed partial class MainViewModel : ObservableObject
     public string WindowTitleText =>
         $"{Project.Name}{(IsDirty ? " *" : "")}{(CurrentFilePath is null ? " (unsaved)" : "")}";
 
+    /// <summary>
+    /// Project.Name wrapped as a bindable, renameable setting - same reasoning as
+    /// UseWbsNumbering above (ProjectModel isn't observable). Edited directly rather than
+    /// through undo/redo: same precedent as resource name/email/color edits, a project's own
+    /// name is document metadata, not project data worth stepping back through history.
+    /// </summary>
+    public string ProjectName
+    {
+        get => Project.Name;
+        set
+        {
+            var trimmed = value.Trim();
+            if (string.IsNullOrEmpty(trimmed) || Project.Name == trimmed)
+                return;
+
+            Project.Name = trimmed;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(WindowTitleText));
+            IsDirty = true;
+        }
+    }
+
+    /// <summary>True while the File Properties panel (date range, tick marks, theme) is showing in the right pane instead of Task Properties.</summary>
+    [ObservableProperty]
+    private bool _isFilePropertiesOpen;
+
+    [RelayCommand]
+    private void ToggleFileProperties()
+    {
+        IsFilePropertiesOpen = !IsFilePropertiesOpen;
+        if (IsFilePropertiesOpen)
+            SetSelection(Array.Empty<TaskNodeViewModel>());
+    }
+
     public MainViewModel()
     {
         Project = new ProjectModel { Name = "Website Redesign Project", UseWbsNumbering = true };
@@ -209,7 +243,12 @@ public sealed partial class MainViewModel : ObservableObject
         Timeline.FitToTasks(Project.Tasks);
     }
 
-    partial void OnSelectedNodeChanged(TaskNodeViewModel? value) => Properties.LoadFrom(value?.Task);
+    partial void OnSelectedNodeChanged(TaskNodeViewModel? value)
+    {
+        Properties.LoadFrom(value?.Task);
+        if (value is not null)
+            IsFilePropertiesOpen = false;
+    }
 
     /// <summary>Single source of truth for selection: updates SelectedNodes plus the primary SelectedNode (set only when exactly one row is selected) and re-queries bulk-action commands.</summary>
     public void SetSelection(IEnumerable<TaskNodeViewModel> nodes)
@@ -236,9 +275,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var selectedIds = SelectedNodes.Select(n => n.Task.Id).ToHashSet();
 
-        RootNodes.Clear();
-        foreach (var root in Project.GetRootTasks())
-            RootNodes.Add(BuildNode(root));
+        RootNodes.ReplaceAll(Project.GetRootTasks().Select(BuildNode));
 
         RefreshVisibleRows();
         RebuildResources();
@@ -261,8 +298,8 @@ public sealed partial class MainViewModel : ObservableObject
         var selectedResourceId = Resources.FirstOrDefault(r => r.IsSelected)?.Resource.Id;
         var expandedResourceIds = Resources.Where(r => r.IsDetailsExpanded).Select(r => r.Resource.Id).ToHashSet();
 
-        Resources.Clear();
-        ResourceAllocationBars.Clear();
+        var newResources = new List<ResourceRowViewModel>();
+        var newBars = new List<ResourceAllocationBarViewModel>();
 
         var index = 0;
         foreach (var resource in Project.Resources)
@@ -287,7 +324,7 @@ public sealed partial class MainViewModel : ObservableObject
             var rowTop = index * RowHeight;
             foreach (var t in assignedTasks)
             {
-                ResourceAllocationBars.Add(new ResourceAllocationBarViewModel(
+                newBars.Add(new ResourceAllocationBarViewModel(
                     X: Timeline.DateToX(t.StartDate),
                     Y: rowTop + (RowHeight - BarHeight) / 2,
                     Width: Math.Max(t.EndDate.DayNumber - t.StartDate.DayNumber, 1) * Timeline.DayWidth,
@@ -306,9 +343,12 @@ public sealed partial class MainViewModel : ObservableObject
             };
             row.IsSelected = resource.Id == selectedResourceId;
             row.IsDetailsExpanded = expandedResourceIds.Contains(resource.Id);
-            Resources.Add(row);
+            newResources.Add(row);
             index++;
         }
+
+        Resources.ReplaceAll(newResources);
+        ResourceAllocationBars.ReplaceAll(newBars);
 
         OnPropertyChanged(nameof(ResourceCanvasWidth));
         OnPropertyChanged(nameof(ResourceCanvasHeight));
@@ -382,10 +422,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var flat = new List<TaskNodeViewModel>();
         FlattenVisible(RootNodes, 0, flat);
-
-        VisibleRows.Clear();
-        foreach (var node in flat)
-            VisibleRows.Add(node);
+        VisibleRows.ReplaceAll(flat);
 
         RecomputeLayout();
     }
@@ -480,7 +517,7 @@ public sealed partial class MainViewModel : ObservableObject
     private void RebuildDependencyLines()
     {
         var byId = VisibleRows.ToDictionary(n => n.Task.Id);
-        DependencyLines.Clear();
+        var lines = new List<DependencyLineViewModel>();
         foreach (var dep in Project.Dependencies)
         {
             if (!byId.TryGetValue(dep.PredecessorTaskId, out var pred) || !byId.TryGetValue(dep.SuccessorTaskId, out var succ))
@@ -491,8 +528,10 @@ public sealed partial class MainViewModel : ObservableObject
             var x2 = succ.Task.IsMilestone ? succ.BarX - 8 : succ.BarX;
             var y2 = succ.RowTop + RowHeight / 2;
 
-            DependencyLines.Add(new DependencyLineViewModel(x1, y1, x2, y2, dep.Id));
+            lines.Add(new DependencyLineViewModel(x1, y1, x2, y2, dep.Id));
         }
+
+        DependencyLines.ReplaceAll(lines);
     }
 
     /// <summary>Removes a dependency link (undoable) - called when the user clicks a connector line on the canvas.</summary>

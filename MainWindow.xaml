@@ -80,7 +80,7 @@
         <SolidColorBrush x:Key="MutedTextBrush" Color="#FF9AA0AC" po:Freeze="False"/>
         <SolidColorBrush x:Key="AccentBrush" Color="#FF3B82F6"/>
         <SolidColorBrush x:Key="SecondaryButtonBrush" Color="#FF3A3B42" po:Freeze="False"/>
-        <SolidColorBrush x:Key="RowAltBrush" Color="#FF23252E" po:Freeze="False"/>
+        <SolidColorBrush x:Key="RowAltBrush" Color="#FF2E313D" po:Freeze="False"/>
         <!-- Dependency link lines: lighter so they stand out against the near-black dark canvas, darker so they read against the light one. -->
         <SolidColorBrush x:Key="LinkLineBrush" Color="#FF8B94A6" po:Freeze="False"/>
         <SolidColorBrush x:Key="OverdueBrush" Color="#FFEF4444"/>
@@ -160,10 +160,97 @@
             <Setter Property="Visibility" Value="{Binding IsRailExpanded, Converter={StaticResource BoolToVisibility}}"/>
         </Style>
 
+        <!-- App-wide flat scrollbar (no implicit x:Key, so it applies to every ScrollViewer's
+             internal ScrollBar automatically) - thumb-only, no arrow buttons, colors pulled from
+             the same theme brushes as everything else so it swaps with dark/light instead of
+             falling back to the OS's default chrome. -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid>
+                            <!-- IsDirectionReversed="True": without it, a vertical Track increases
+                                 Value from bottom to top - dragging the thumb down would scroll
+                                 up. Minimum/Maximum/Value/ViewportSize/Orientation don't need
+                                 explicit TemplateBindings here: ScrollBar.OnApplyTemplate finds
+                                 this Track by its "PART_Track" name and wires all of those up
+                                 itself, which is the one part of this template that's easy to
+                                 assume needs doing by hand and isn't. -->
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border x:Name="ThumbBg" Background="{DynamicResource BorderBrush2}"
+                                                        CornerRadius="5" Margin="2"/>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ThumbBg" Property="Background" Value="{DynamicResource MutedTextBrush}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter TargetName="ThumbBg" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <!-- A vertical scrollbar needs a thin Width (its thickness) with Height left
+                     alone so it stretches to fill its container; a horizontal one needs the
+                     opposite. Setting both dimensions unconditionally to a fixed 11px - the
+                     previous version of this style - collapsed every vertical scrollbar down to
+                     an 11px-tall sliver instead of the full track height, which is what made the
+                     task list's scrollbar look completely nonfunctional. -->
+                <Trigger Property="Orientation" Value="Vertical">
+                    <Setter Property="Width" Value="11"/>
+                </Trigger>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Height" Value="11"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="PanelLabel" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Margin" Value="0,10,0,4"/>
+        </Style>
+
+        <!-- Project title, editable in place: reads as plain largeish text until hovered/focused,
+             when a faint background appears as the only hint it's actually a TextBox. -->
+        <Style x:Key="TitleTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Cursor" Value="IBeam"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Grid>
+                            <Border x:Name="Bg" Background="{DynamicResource BorderBrush2}" Opacity="0" CornerRadius="4"/>
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style x:Key="DashboardCard" TargetType="Border">
@@ -563,21 +650,13 @@
         </Style>
 
         <!-- Alternating row background plus a full-width bottom divider, painted behind the Gantt bars and aligned to the same VisibleRows order -->
+        <!-- Row stripes deliberately removed from the canvas (kept on the task list, where they
+             still help you track a row across a wide window) - the canvas gets its visual
+             structure from the week-boundary gridlines instead (see GridlineTemplate) rather
+             than alternating backgrounds. -->
         <DataTemplate x:Key="CanvasRowStripeTemplate" DataType="{x:Type vm:TaskNodeViewModel}">
             <Grid Width="{Binding DataContext.CanvasWidth, RelativeSource={RelativeSource AncestorType=Window}}"
                   Height="{Binding DataContext.RowHeight, RelativeSource={RelativeSource AncestorType=Window}}">
-                <Rectangle>
-                    <Rectangle.Style>
-                        <Style TargetType="Rectangle">
-                            <Setter Property="Fill" Value="Transparent"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsAlternateRow}" Value="True">
-                                    <Setter Property="Fill" Value="{DynamicResource RowAltBrush}"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Rectangle.Style>
-                </Rectangle>
                 <Border VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
             </Grid>
         </DataTemplate>
@@ -588,18 +667,6 @@
         <DataTemplate x:Key="ResourceRowStripeTemplate" DataType="{x:Type vm:ResourceRowViewModel}">
             <Grid Width="{Binding DataContext.ResourceCanvasWidth, RelativeSource={RelativeSource AncestorType=Window}}"
                   Height="{Binding DataContext.RowHeight, RelativeSource={RelativeSource AncestorType=Window}}">
-                <Rectangle>
-                    <Rectangle.Style>
-                        <Style TargetType="Rectangle">
-                            <Setter Property="Fill" Value="Transparent"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsAlternateRow}" Value="True">
-                                    <Setter Property="Fill" Value="{DynamicResource RowAltBrush}"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Rectangle.Style>
-                </Rectangle>
                 <Border VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
             </Grid>
         </DataTemplate>
@@ -640,8 +707,13 @@
                 <Border Height="{Binding DataContext.BarHeight, RelativeSource={RelativeSource AncestorType=Window}}"
                         CornerRadius="4" VerticalAlignment="Center" HorizontalAlignment="Left"
                         Width="{Binding BarWidth}" Background="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
-                        IsHitTestVisible="False"
-                        Visibility="{Binding IsMilestone, Converter={StaticResource InverseBoolToVisibility}}">
+                        IsHitTestVisible="False">
+                    <Border.Visibility>
+                        <MultiBinding Converter="{StaticResource AllTrueToVisibility}">
+                            <Binding Path="IsMilestone" Converter="{StaticResource InverseBool}"/>
+                            <Binding Path="IsGroup" Converter="{StaticResource InverseBool}"/>
+                        </MultiBinding>
+                    </Border.Visibility>
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="BorderThickness" Value="0"/>
@@ -658,6 +730,29 @@
                         </Style>
                     </Border.Style>
                 </Border>
+
+                <!-- Group/section "summary bar": a thin bracket spanning the rolled-up child date
+                     range, with downward-pointing end caps - the standard Gantt convention for
+                     "this is a structural rollup, not a real task with its own duration" (MS
+                     Project, GanttProject, etc. all draw summary rows this way). Deliberately
+                     undecorated by overdue/conflict outlines, unlike a real task's bar - a group's
+                     Progress is never independently tracked, so it would otherwise misleadingly
+                     show every past-due group as "overdue". -->
+                <Border Height="7" CornerRadius="1.5" VerticalAlignment="Center" HorizontalAlignment="Left"
+                        Width="{Binding BarWidth}" Background="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
+                        IsHitTestVisible="False"
+                        Visibility="{Binding IsGroup, Converter={StaticResource BoolToVisibility}}"/>
+                <Path Width="11" Height="9" Stretch="Fill" HorizontalAlignment="Left" VerticalAlignment="Center"
+                      Margin="-5,1,0,0" Data="M 0,0 L 11,0 L 5.5,9 Z"
+                      Fill="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
+                      IsHitTestVisible="False"
+                      Visibility="{Binding IsGroup, Converter={StaticResource BoolToVisibility}}"/>
+                <Path Width="11" Height="9" Stretch="Fill" HorizontalAlignment="Left" VerticalAlignment="Center"
+                      Data="M 0,0 L 11,0 L 5.5,9 Z"
+                      Fill="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
+                      IsHitTestVisible="False"
+                      Margin="{Binding BarWidth, Converter={StaticResource DoubleToLeftMargin}}"
+                      Visibility="{Binding IsGroup, Converter={StaticResource BoolToVisibility}}"/>
                 <Path Width="15" Height="15" Stretch="Uniform" Margin="-7,0,0,0" HorizontalAlignment="Left"
                       Data="M 7.5,0 L 15,7.5 L 7.5,15 L 0,7.5 Z"
                       Fill="{Binding BarColorHex, Converter={StaticResource HexToBrush}}"
@@ -753,14 +848,45 @@
         </DataTemplate>
 
         <!-- Vertical gridline at each tick, spanning the full canvas height -->
+        <!-- A tick that lands on a Monday gets a thicker, fully-opaque line marking the start of
+             a new week; every other tick stays the thin, subtle divider it always was. In Week
+             tick mode this never fires - BuildTicks walks week starts from StartOfWeek, which
+             lands on Sunday, so no tick in that mode is ever a Monday - which is exactly the
+             "only meaningful in Day mode" behavior wanted, with no extra mode-checking needed. -->
         <DataTemplate x:Key="GridlineTemplate" DataType="{x:Type vm:TimelineTick}">
-            <Rectangle Width="1" Fill="{DynamicResource BorderBrush2}" Opacity="0.9"
-                       Height="{Binding DataContext.CanvasHeight, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <Rectangle Fill="{DynamicResource BorderBrush2}"
+                       Height="{Binding DataContext.CanvasHeight, RelativeSource={RelativeSource AncestorType=Window}}">
+                <Rectangle.Style>
+                    <Style TargetType="Rectangle">
+                        <Setter Property="Width" Value="1"/>
+                        <Setter Property="Opacity" Value="0.9"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Date.DayOfWeek}" Value="Monday">
+                                <Setter Property="Width" Value="2"/>
+                                <Setter Property="Opacity" Value="1"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Rectangle.Style>
+            </Rectangle>
         </DataTemplate>
 
         <DataTemplate x:Key="ResourceGridlineTemplate" DataType="{x:Type vm:TimelineTick}">
-            <Rectangle Width="1" Fill="{DynamicResource BorderBrush2}" Opacity="0.9"
-                       Height="{Binding DataContext.ResourceCanvasHeight, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <Rectangle Fill="{DynamicResource BorderBrush2}"
+                       Height="{Binding DataContext.ResourceCanvasHeight, RelativeSource={RelativeSource AncestorType=Window}}">
+                <Rectangle.Style>
+                    <Style TargetType="Rectangle">
+                        <Setter Property="Width" Value="1"/>
+                        <Setter Property="Opacity" Value="0.9"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Date.DayOfWeek}" Value="Monday">
+                                <Setter Property="Width" Value="2"/>
+                                <Setter Property="Opacity" Value="1"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Rectangle.Style>
+            </Rectangle>
         </DataTemplate>
 
         <!-- Dependency connector: elbow path plus arrowhead, with a wide invisible hit path
@@ -838,7 +964,7 @@
             <ColumnDefinition Width="5"/>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="5"/>
-            <ColumnDefinition Width="320"/>
+            <ColumnDefinition Width="380"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="56"/>
@@ -885,18 +1011,6 @@
                             <TextBlock Text="Export" Style="{StaticResource RailButtonLabel}"/>
                         </StackPanel>
                     </Button>
-                    <ToggleButton x:Name="ProjectPropertiesToggle" Style="{StaticResource RailToggleButtonStyle}" ToolTip="Project Properties">
-                        <StackPanel Orientation="Horizontal">
-                            <Grid Width="14" Height="14">
-                                <Path Stroke="{DynamicResource TextBrush}" StrokeThickness="1.4" Data="M 0,3 L 14,3 M 0,7.5 L 14,7.5 M 0,12 L 14,12"/>
-                                <Ellipse Width="4" Height="4" Fill="{DynamicResource TextBrush}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,1,0,0"/>
-                                <Ellipse Width="4" Height="4" Fill="{DynamicResource TextBrush}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,5.5,0,0"/>
-                                <Ellipse Width="4" Height="4" Fill="{DynamicResource TextBrush}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4,10,0,0"/>
-                            </Grid>
-                            <TextBlock Text="Properties" Style="{StaticResource RailButtonLabel}"/>
-                        </StackPanel>
-                    </ToggleButton>
-
                     <Border Height="1" Margin="8,6" Background="{DynamicResource BorderBrush2}"/>
 
                     <Button Style="{StaticResource RailButton}" Command="{Binding NewTaskCommand}" ToolTip="New Task (Ins)">
@@ -996,51 +1110,6 @@
             </DockPanel>
         </Border>
 
-        <!-- Project properties: a lightweight settings flyout (not a persistent panel like the
-             task Properties panel on the right, since these are occasional, whole-project
-             settings rather than something edited per-task) anchored to the rail's gear toggle. -->
-        <!-- StaysOpen="True": the DatePickers' calendar and the ComboBox's dropdown are each
-             their own nested Popup, and a StaysOpen="False" outer Popup treats a click inside a
-             nested one as "outside" and closes itself before the click reaches it. Dismissed by
-             toggling the gear button again instead of a click-away. -->
-        <Popup x:Name="ProjectPropertiesPopup" PlacementTarget="{Binding ElementName=ProjectPropertiesToggle}" Placement="Right"
-               IsOpen="{Binding IsChecked, ElementName=ProjectPropertiesToggle}"
-               StaysOpen="True" AllowsTransparency="True" PopupAnimation="Fade">
-            <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush2}"
-                    BorderThickness="1" CornerRadius="8" Padding="16" Width="300">
-                <Border.Effect>
-                    <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.4"/>
-                </Border.Effect>
-                <StackPanel>
-                    <TextBlock Text="Project Properties" Foreground="{DynamicResource TextBrush}" FontSize="14" FontWeight="SemiBold"/>
-
-                    <TextBlock Text="TIMELINE" Style="{StaticResource PanelLabel}" Margin="0,14,0,4"/>
-                    <TextBlock Text="Date range" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,0,0,4"/>
-                    <StackPanel Orientation="Horizontal">
-                        <DatePicker SelectedDate="{Binding Timeline.RangeStartDate}" Width="122" Height="26" FontSize="11" ToolTip="Timeline start date"/>
-                        <TextBlock Text="&#8594;" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="6,0,6,0"/>
-                        <DatePicker SelectedDate="{Binding Timeline.RangeEndDate}" Width="122" Height="26" FontSize="11" ToolTip="Timeline end date"/>
-                    </StackPanel>
-
-                    <TextBlock Text="Tick marks" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,12,0,4"/>
-                    <ComboBox ItemsSource="{Binding Timeline.TickModes}" SelectedItem="{Binding Timeline.TickMode}" Height="28"
-                              ToolTip="Auto switches between daily and weekly tick marks based on zoom; Day/Week always show that granularity"/>
-
-                    <TextBlock Text="APPEARANCE" Style="{StaticResource PanelLabel}" Margin="0,16,0,4"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Theme" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" VerticalAlignment="Center"/>
-                        <Button Grid.Column="1" Style="{StaticResource ResetZoomButtonStyle}" Command="{Binding ToggleThemeCommand}">
-                            <TextBlock Text="{Binding IsDarkTheme, Converter={StaticResource DarkThemeLabel}}"/>
-                        </Button>
-                    </Grid>
-                </StackPanel>
-            </Border>
-        </Popup>
-
         <!-- Top bar -->
         <Border Grid.Column="1" Grid.ColumnSpan="5" Grid.Row="0" Background="{DynamicResource PanelBrush}"
                 BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,0,0,1">
@@ -1135,21 +1204,75 @@
                 Visibility="{Binding ActiveTab, Converter={StaticResource EnumEquals}, ConverterParameter=Gantt}">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="40"/>
                     <RowDefinition Height="28"/>
                     <RowDefinition Height="32"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="1" Text="Task / Section" Style="{StaticResource PanelLabel}"
+                <!-- Document title row: project name (click to rename), file-properties button, save-status dot -->
+                <Border Grid.Row="0" Background="{DynamicResource PanelBrush}"
+                        BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,0,0,1">
+                    <DockPanel Margin="10,0,8,0" LastChildFill="True">
+                        <Ellipse DockPanel.Dock="Left" Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center"
+                                 ToolTip="Saved locally">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#FF22C55E"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsDirty}" Value="True">
+                                            <Setter Property="Fill" Value="#FFF59E0B"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+
+                        <!-- Local-file glyph (no cloud sync exists in this app, so this always reads as "saved on this computer") -->
+                        <Path DockPanel.Dock="Left" Data="M1,1 L13,1 L13,9 L1,9 Z M4,11 L10,11 M7,9 L7,11"
+                              Stroke="{DynamicResource MutedTextBrush}" StrokeThickness="1.2"
+                              Width="14" Height="12" Margin="0,0,10,0" VerticalAlignment="Center"
+                              ToolTip="Saved locally"/>
+
+                        <!-- "Settings sliders" glyph (three rows, each a line with an offset knob) -
+                             reads unambiguously as "open settings/properties" at small sizes,
+                             unlike the gear silhouette this replaces which turned into a blob. -->
+                        <ToggleButton DockPanel.Dock="Right" Style="{StaticResource RailToggleButtonStyle}"
+                                      IsChecked="{Binding IsFilePropertiesOpen, Mode=OneWay}"
+                                      Command="{Binding ToggleFilePropertiesCommand}"
+                                      ToolTip="File Properties" Width="24" Height="24" Padding="0">
+                            <Canvas Width="14" Height="14">
+                                <Line X1="0" Y1="2" X2="14" Y2="2" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.3"/>
+                                <Ellipse Canvas.Left="8" Canvas.Top="0.5" Width="3" Height="3" Fill="{DynamicResource TextBrush}"/>
+                                <Line X1="0" Y1="7" X2="14" Y2="7" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.3"/>
+                                <Ellipse Canvas.Left="3" Canvas.Top="5.5" Width="3" Height="3" Fill="{DynamicResource TextBrush}"/>
+                                <Line X1="0" Y1="12" X2="14" Y2="12" Stroke="{DynamicResource TextBrush}" StrokeThickness="1.3"/>
+                                <Ellipse Canvas.Left="9.5" Canvas.Top="10.5" Width="3" Height="3" Fill="{DynamicResource TextBrush}"/>
+                            </Canvas>
+                        </ToggleButton>
+
+                        <!-- LostFocus, not PropertyChanged: ProjectName trims on every set, and
+                             with a live per-keystroke binding that trim fires mid-typing too -
+                             stripping the trailing space the moment you type one, so a multi-word
+                             name could never actually be entered. Committing on LostFocus/Enter
+                             only avoids that; KeyDown just moves focus to trigger the commit. -->
+                        <TextBox Text="{Binding ProjectName, UpdateSourceTrigger=LostFocus}"
+                                 Style="{StaticResource TitleTextBoxStyle}"
+                                 VerticalAlignment="Center" ToolTip="Click to rename project"
+                                 KeyDown="ProjectNameTextBox_KeyDown"/>
+                    </DockPanel>
+                </Border>
+
+                <TextBlock Grid.Row="2" Text="Task / Section" Style="{StaticResource PanelLabel}"
                            Margin="10,0,0,0" VerticalAlignment="Center"/>
-                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center">
+                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center">
                     <Button Content="Expand All" Style="{StaticResource ResetZoomButtonStyle}" Command="{Binding ExpandAllCommand}"/>
                     <Button Content="Collapse All" Style="{StaticResource ResetZoomButtonStyle}" Command="{Binding CollapseAllCommand}"/>
                 </StackPanel>
-                <Border Grid.Row="1" VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
+                <Border Grid.Row="2" VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
 
-                <ScrollViewer x:Name="TaskListScroll" Grid.Row="2"
-                              VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer x:Name="TaskListScroll" Grid.Row="3"
+                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <ListBox x:Name="TaskList" ItemsSource="{Binding VisibleRows}" ItemTemplate="{StaticResource TaskRowTemplate}"
                              ItemContainerStyle="{StaticResource TaskListBoxItemStyle}"
                              SelectionMode="Extended" AllowDrop="True"
@@ -1168,13 +1291,20 @@
                 Visibility="{Binding ActiveTab, Converter={StaticResource EnumEquals}, ConverterParameter=Gantt}">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="40"/>
                     <RowDefinition Height="28"/>
                     <RowDefinition Height="32"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
+                <!-- Blank spacer row: keeps this Grid's rows aligned with the task list panel's
+                     Grid to its left, which has a title row (project name/rename/file properties)
+                     here instead. Two independent Grids, so this only needs to match its height. -->
+                <Border Grid.Row="0" Background="{DynamicResource PanelAltBrush}"
+                        BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,0,0,1"/>
+
                 <!-- Zoom toolbar -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0">
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0">
                     <Button Content="Today" Style="{StaticResource ResetZoomButtonStyle}"
                             Click="JumpToToday_Click" ToolTip="Jump to Today"/>
                     <Button Content="&#8722;" Style="{StaticResource ZoomButtonStyle}" Command="{Binding ZoomOutCommand}" ToolTip="Zoom Out"/>
@@ -1184,7 +1314,7 @@
                 </StackPanel>
 
                 <!-- Timeline header (horizontal scroll only, synced to the canvas body) -->
-                <Border Grid.Row="1" Background="{DynamicResource PanelAltBrush}"
+                <Border Grid.Row="2" Background="{DynamicResource PanelAltBrush}"
                         BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,1,0,1">
                     <ScrollViewer x:Name="HeaderScroll" VerticalScrollBarVisibility="Disabled"
                                   HorizontalScrollBarVisibility="Hidden" IsHitTestVisible="False">
@@ -1205,8 +1335,14 @@
                 </Border>
 
                 <!-- Canvas body: gridlines, alternating row stripes, dependency lines, bars, today marker -->
-                <ScrollViewer x:Name="CanvasScroll" Grid.Row="2" Background="Transparent"
-                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                <!-- Both scrollbars hidden here on purpose: vertical now shows on the task list's
+                     own right edge instead (closer to what you're actually reading), and
+                     horizontal is dropped entirely now that the range silently extends as you
+                     approach either edge (drag-pan, Ctrl+scroll zoom, and the Today button cover
+                     navigation without it). Both ScrollViewers stay functional - Hidden, not
+                     Disabled - this only hides the bars themselves. -->
+                <ScrollViewer x:Name="CanvasScroll" Grid.Row="3" Background="Transparent"
+                              VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden">
                     <Grid x:Name="CanvasBodyGrid" Background="Transparent">
                         <ItemsControl ItemsSource="{Binding VisibleRows}" ItemTemplate="{StaticResource CanvasRowStripeTemplate}"
                                       HorizontalAlignment="Left" VerticalAlignment="Top">
@@ -1289,12 +1425,15 @@
                       Visibility="{Binding ActiveTab, Converter={StaticResource EnumEquals}, ConverterParameter=Gantt}"/>
 
         <!-- Properties panel. Uses PanelAltBrush (not PanelBrush, which the task list to its left
-             already uses) plus a thicker accent-colored left edge and its own header bar, so it
-             reads as a distinct, purposeful panel rather than more of the same grey continuing
-             past the canvas. -->
+             already uses) plus a thick accent-colored left edge, a cast shadow to visually lift
+             it off the canvas, and its own header bar, so it reads as a distinct, purposeful
+             panel rather than more of the same grey continuing past the canvas. -->
         <Border Grid.Column="5" Grid.Row="1" Background="{DynamicResource PanelAltBrush}"
                 Visibility="{Binding ActiveTab, Converter={StaticResource EnumEquals}, ConverterParameter=Gantt}"
-                BorderBrush="{StaticResource AccentBrush}" BorderThickness="3,0,0,0">
+                BorderBrush="{StaticResource AccentBrush}" BorderThickness="5,0,0,0">
+            <Border.Effect>
+                <DropShadowEffect Color="Black" Direction="180" ShadowDepth="6" BlurRadius="18" Opacity="0.35"/>
+            </Border.Effect>
             <DockPanel>
                 <Border DockPanel.Dock="Top" Background="{DynamicResource PanelBrush}"
                         BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,0,0,1" Padding="16,14">
@@ -1308,6 +1447,9 @@
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Properties.IsBulkMode}" Value="True">
                                         <Setter Property="Text" Value="{Binding Properties.BulkTaskCount, StringFormat='{}{0} Tasks Selected'}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsFilePropertiesOpen}" Value="True">
+                                        <Setter Property="Text" Value="File Properties"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -1326,13 +1468,52 @@
                                     <DataTrigger Binding="{Binding Properties.HasSelection}" Value="False">
                                         <Setter Property="Visibility" Value="Visible"/>
                                     </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsFilePropertiesOpen}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
 
+                    <!-- File Properties: same TIMELINE/APPEARANCE content that used to live in the
+                         gear-icon flyout, now shown in this pane instead (mutually exclusive with
+                         task selection - opening this clears the selection, and vice versa). -->
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,14"
-                                  Visibility="{Binding Properties.HasSelection, Converter={StaticResource BoolToVisibility}}">
+                                  Visibility="{Binding IsFilePropertiesOpen, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <TextBlock Text="TIMELINE" Style="{StaticResource PanelLabel}"/>
+
+                            <TextBlock Text="RANGE START" Style="{StaticResource PanelLabel}" Margin="0,10,0,4"/>
+                            <DatePicker SelectedDate="{Binding Timeline.RangeStartDate}"/>
+
+                            <TextBlock Text="RANGE END" Style="{StaticResource PanelLabel}"/>
+                            <DatePicker SelectedDate="{Binding Timeline.RangeEndDate}"/>
+
+                            <TextBlock Text="TICK MARKS" Style="{StaticResource PanelLabel}"/>
+                            <ComboBox ItemsSource="{Binding Timeline.TickModes}" SelectedItem="{Binding Timeline.TickMode}"/>
+
+                            <TextBlock Text="APPEARANCE" Style="{StaticResource PanelLabel}" Margin="0,20,0,4"/>
+                            <Button Command="{Binding ToggleThemeCommand}" Style="{StaticResource ResetZoomButtonStyle}"
+                                    HorizontalAlignment="Left" Padding="12,6"
+                                    Content="{Binding IsDarkTheme, Converter={StaticResource DarkThemeLabel}}"/>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,14">
+                        <ScrollViewer.Style>
+                            <Style TargetType="ScrollViewer">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Properties.HasSelection}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsFilePropertiesOpen}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ScrollViewer.Style>
                         <StackPanel DataContext="{Binding Properties}">
                             <!-- Single-task fields -->
                         <StackPanel Visibility="{Binding IsBulkMode, Converter={StaticResource InverseBoolToVisibility}}">
@@ -1512,7 +1693,7 @@
                     <TextBlock Grid.Row="0" Text="RESOURCE" Style="{StaticResource PanelLabel}" Margin="14,0,0,0" VerticalAlignment="Center"/>
                     <Border Grid.Row="0" VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
                     <ScrollViewer x:Name="ResourceListScroll" Grid.Row="1"
-                                  VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
+                                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl ItemsSource="{Binding Resources}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -1610,7 +1791,7 @@
                     </ScrollViewer>
 
                     <ScrollViewer x:Name="ResourceCanvasScroll" Grid.Row="1" Background="Transparent"
-                                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                  VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden">
                         <Grid x:Name="ResourceCanvasBodyGrid" Background="Transparent">
                             <ItemsControl ItemsSource="{Binding Resources}" ItemTemplate="{StaticResource ResourceRowStripeTemplate}"
                                           HorizontalAlignment="Left" VerticalAlignment="Top">
