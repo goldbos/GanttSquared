@@ -231,6 +231,24 @@ namespace GanttSquared
         private void ScrollCanvasToX(double x) =>
             CanvasScroll.ScrollToHorizontalOffset(Math.Max(0, x - CanvasScroll.ViewportWidth / 2));
 
+        /// <summary>Double-clicking a resource's allocation bar jumps to the same task on the
+        /// Gantt tab, expanding collapsed ancestors and scrolling it into view - the Gantt canvas
+        /// was hidden (Collapsed) until RevealTaskOnGantt switches ActiveTab, so its ViewportWidth
+        /// may still be stale from before; deferring the scroll one dispatcher cycle lets layout
+        /// catch up first, same reasoning as the Loaded-time viewport-width fetch.</summary>
+        private void ResourceBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount != 2 || sender is not FrameworkElement { DataContext: ResourceAllocationBarViewModel bar })
+                return;
+
+            ViewModel.RevealTaskOnGantt(bar.TaskId);
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (ViewModel.SelectedNode is { } node)
+                    ScrollCanvasToX(node.BarX + node.BarWidth / 2);
+            });
+        }
+
         // ---- Hover linkage: hovering a task's row highlights its bar (and vice versa) via the shared TaskNodeViewModel.IsHovered ----
 
         private void TaskRow_MouseEnter(object sender, MouseEventArgs e)

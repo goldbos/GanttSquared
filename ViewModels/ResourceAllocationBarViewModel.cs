@@ -6,4 +6,4 @@ namespace GanttSquared.ViewModels;
 /// rather than nested per-row canvases - X comes from the same GanttTimelineViewModel instance
 /// the Gantt chart uses, so the two charts always line up date-wise.
 /// </summary>
-public sealed record ResourceAllocationBarViewModel(double X, double Y, double Width, double Height, string ColorHex, string TaskName, bool IsConflict);
+public sealed record ResourceAllocationBarViewModel(double X, double Y, double Width, double Height, string ColorHex, string TaskName, Guid TaskId, bool IsConflict);

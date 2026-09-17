@@ -30,6 +30,7 @@
         <conv:DarkThemeLabelConverter x:Key="DarkThemeLabel"/>
         <conv:EnumEqualsConverter x:Key="EnumEquals"/>
         <conv:EnumNotEqualsConverter x:Key="EnumNotEquals"/>
+        <conv:ActiveTabToWidthConverter x:Key="ActiveTabToWidth"/>
         <conv:BoolToRailWidthConverter x:Key="BoolToRailWidth"/>
         <!--
           Theme toggle: MainWindow.xaml.cs's ToggleTheme mutates each of these SolidColorBrush
@@ -676,10 +677,15 @@
             </Grid>
         </DataTemplate>
 
+        <!-- Double-click jumps to the same task on the Gantt tab (ResourceBar_MouseLeftButtonDown
+             checks ClickCount==2). The task-name label is always shown, not hover-only, and
+             relies on TextTrimming to clip gracefully as the bar narrows with zoom rather than a
+             hard show/hide cutoff - it just reads as empty once there's no room left for it. -->
         <DataTemplate x:Key="ResourceBarTemplate" DataType="{x:Type vm:ResourceAllocationBarViewModel}">
             <Border Height="{Binding Height}" Width="{Binding Width}" CornerRadius="4"
                     Background="{Binding ColorHex, Converter={StaticResource HexToBrush}}"
-                    ToolTip="{Binding TaskName}">
+                    ToolTip="{Binding TaskName}" Cursor="Hand"
+                    MouseLeftButtonDown="ResourceBar_MouseLeftButtonDown">
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="BorderThickness" Value="0"/>
@@ -691,6 +697,9 @@
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
+                <TextBlock Text="{Binding TaskName}" Foreground="White" FontSize="11"
+                           Margin="6,0,4,0" VerticalAlignment="Center" HorizontalAlignment="Left"
+                           TextTrimming="CharacterEllipsis" IsHitTestVisible="False"/>
             </Border>
         </DataTemplate>
 
@@ -968,8 +977,8 @@
             <ColumnDefinition Width="300"/>
             <ColumnDefinition Width="5"/>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="5"/>
-            <ColumnDefinition Width="300"/>
+            <ColumnDefinition Width="{Binding ActiveTab, Converter={StaticResource ActiveTabToWidth}, ConverterParameter=5}"/>
+            <ColumnDefinition Width="{Binding ActiveTab, Converter={StaticResource ActiveTabToWidth}, ConverterParameter=300}"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="56"/>
@@ -1178,7 +1187,6 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="40"/>
-                    <RowDefinition Height="28"/>
                     <RowDefinition Height="32"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
@@ -1236,15 +1244,15 @@
                     </DockPanel>
                 </Border>
 
-                <TextBlock Grid.Row="2" Text="Task / Section" Style="{StaticResource PanelLabel}"
+                <TextBlock Grid.Row="1" Text="Task / Section" Style="{StaticResource PanelLabel}"
                            Margin="10,0,0,0" VerticalAlignment="Center"/>
-                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center">
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center">
                     <Button Content="Expand All" Style="{StaticResource ResetZoomButtonStyle}" Command="{Binding ExpandAllCommand}"/>
                     <Button Content="Collapse All" Style="{StaticResource ResetZoomButtonStyle}" Command="{Binding CollapseAllCommand}"/>
                 </StackPanel>
-                <Border Grid.Row="2" VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
+                <Border Grid.Row="1" VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
 
-                <ScrollViewer x:Name="TaskListScroll" Grid.Row="3"
+                <ScrollViewer x:Name="TaskListScroll" Grid.Row="2"
                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <ListBox x:Name="TaskList" ItemsSource="{Binding VisibleRows}" ItemTemplate="{StaticResource TaskRowTemplate}"
                              ItemContainerStyle="{StaticResource TaskListBoxItemStyle}"
@@ -1265,15 +1273,11 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="40"/>
-                    <RowDefinition Height="28"/>
                     <RowDefinition Height="32"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Row aligns with the task list panel's title row (project name/rename/file
-                     properties) to its left - it used to be a blank spacer purely for height
-                     alignment, now it also holds the zoom toolbar so Row 1 below (which the task
-                     list leaves blank at this same position) can stay blank on both sides. -->
+                <!-- Row aligns with the task list panel's title row (project name/rename/file properties) to its left. -->
                 <Border Grid.Row="0" Background="{DynamicResource PanelAltBrush}"
                         BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,0,0,1"/>
                 <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0">
@@ -1286,7 +1290,7 @@
                 </StackPanel>
 
                 <!-- Timeline header (horizontal scroll only, synced to the canvas body) -->
-                <Border Grid.Row="2" Background="{DynamicResource PanelAltBrush}"
+                <Border Grid.Row="1" Background="{DynamicResource PanelAltBrush}"
                         BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,1,0,1">
                     <ScrollViewer x:Name="HeaderScroll" VerticalScrollBarVisibility="Disabled"
                                   HorizontalScrollBarVisibility="Hidden" IsHitTestVisible="False">
@@ -1313,7 +1317,7 @@
                      approach either edge (drag-pan, Ctrl+scroll zoom, and the Today button cover
                      navigation without it). Both ScrollViewers stay functional - Hidden, not
                      Disabled - this only hides the bars themselves. -->
-                <ScrollViewer x:Name="CanvasScroll" Grid.Row="3" Background="Transparent"
+                <ScrollViewer x:Name="CanvasScroll" Grid.Row="2" Background="Transparent"
                               VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden">
                     <Grid x:Name="CanvasBodyGrid" Background="Transparent">
                         <ItemsControl ItemsSource="{Binding VisibleRows}" ItemTemplate="{StaticResource CanvasRowStripeTemplate}"
@@ -1627,7 +1631,6 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="40"/>
-                    <RowDefinition Height="28"/>
                     <RowDefinition Height="32"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
@@ -1639,14 +1642,14 @@
                                FontSize="17" FontWeight="SemiBold" Margin="14,0,0,0" VerticalAlignment="Center"/>
                 </Border>
 
-                <TextBlock Grid.Row="2" Text="RESOURCE" Style="{StaticResource PanelLabel}"
+                <TextBlock Grid.Row="1" Text="RESOURCE" Style="{StaticResource PanelLabel}"
                            Margin="10,0,0,0" VerticalAlignment="Center"/>
-                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center">
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center">
                     <Button Content="+ Add Resource" Style="{StaticResource ResetZoomButtonStyle}" Command="{Binding AddResourceCommand}"/>
                 </StackPanel>
-                <Border Grid.Row="2" VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
+                <Border Grid.Row="1" VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
 
-                <TextBlock Grid.Row="3" Text="No resources yet. Click &quot;+ Add Resource&quot; above to create one."
+                <TextBlock Grid.Row="2" Text="No resources yet. Click &quot;+ Add Resource&quot; above to create one."
                            Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap"
                            Margin="14,14,14,0" VerticalAlignment="Top">
                     <TextBlock.Style>
@@ -1661,7 +1664,7 @@
                     </TextBlock.Style>
                 </TextBlock>
 
-                <ScrollViewer x:Name="ResourceListScroll" Grid.Row="3"
+                <ScrollViewer x:Name="ResourceListScroll" Grid.Row="2"
                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <ItemsControl ItemsSource="{Binding Resources}">
                         <ItemsControl.ItemTemplate>
@@ -1726,7 +1729,6 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="40"/>
-                    <RowDefinition Height="28"/>
                     <RowDefinition Height="32"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
@@ -1744,7 +1746,7 @@
                 </StackPanel>
 
                 <!-- Timeline header, matching the Gantt canvas's own header row -->
-                <Border Grid.Row="2" Background="{DynamicResource PanelAltBrush}"
+                <Border Grid.Row="1" Background="{DynamicResource PanelAltBrush}"
                         BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,1,0,1">
                     <ScrollViewer x:Name="ResourceHeaderScroll" VerticalScrollBarVisibility="Disabled"
                                   HorizontalScrollBarVisibility="Hidden" IsHitTestVisible="False">
@@ -1764,7 +1766,7 @@
                     </ScrollViewer>
                 </Border>
 
-                <ScrollViewer x:Name="ResourceCanvasScroll" Grid.Row="3" Background="Transparent"
+                <ScrollViewer x:Name="ResourceCanvasScroll" Grid.Row="2" Background="Transparent"
                               VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden">
                         <Grid x:Name="ResourceCanvasBodyGrid" Background="Transparent">
                             <ItemsControl ItemsSource="{Binding Resources}" ItemTemplate="{StaticResource ResourceRowStripeTemplate}"

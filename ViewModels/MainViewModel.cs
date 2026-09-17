@@ -331,6 +331,7 @@ public sealed partial class MainViewModel : ObservableObject
                     Height: BarHeight,
                     ColorHex: t.Color ?? TaskNodeViewModel.DefaultColorFor(t.Priority),
                     TaskName: t.Name,
+                    TaskId: t.Id,
                     IsConflict: conflictingTaskIds.Contains(t.Id)));
             }
 
@@ -1118,6 +1119,25 @@ public sealed partial class MainViewModel : ObservableObject
         ExpandAncestors(match);
         RebuildTree();
         var node = FindNode(RootNodes, match.Id);
+        SetSelection(node is null ? Enumerable.Empty<TaskNodeViewModel>() : new[] { node });
+    }
+
+    /// <summary>
+    /// Switches to the Gantt tab, expands any collapsed ancestors, and selects the given task -
+    /// used when double-clicking a resource's allocation bar to jump to the corresponding Gantt
+    /// row. Scrolling the canvas to bring it into view is a View concern; the caller does that
+    /// afterward by reading SelectedNode's BarX/BarWidth once this returns.
+    /// </summary>
+    public void RevealTaskOnGantt(Guid taskId)
+    {
+        var task = Project.FindTask(taskId);
+        if (task is null)
+            return;
+
+        ExpandAncestors(task);
+        RebuildTree();
+        ActiveTab = MainTab.Gantt;
+        var node = FindNode(RootNodes, taskId);
         SetSelection(node is null ? Enumerable.Empty<TaskNodeViewModel>() : new[] { node });
     }
 
