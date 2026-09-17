@@ -483,19 +483,20 @@
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         </Style>
 
+        <!-- Pill tab: active tab gets a solid accent-filled rounded pill; inactive tabs are
+             plain text with a faint hover background. Each tab button's own Style (BasedOn this)
+             adds the DataTrigger that sets Background/Foreground when it's the active tab. -->
         <Style x:Key="TabButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0,0,0,3"/>
-            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,8"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bg" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -550,19 +551,22 @@
                     </Button>
                 </StackPanel>
 
-                <Ellipse Grid.Column="1" Width="9" Height="9" Fill="#FF6B7280" VerticalAlignment="Center">
+                <!-- Task-color dot; swaps to a diamond of the same color for milestones. -->
+                <Ellipse Grid.Column="1" Width="9" Height="9" VerticalAlignment="Center"
+                         Fill="{Binding BarColorHex, Converter={StaticResource HexToBrush}}">
                     <Ellipse.Style>
                         <Style TargetType="Ellipse">
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsGroup}" Value="True">
-                                    <Setter Property="Fill" Value="#FFF4B740"/>
+                                <DataTrigger Binding="{Binding IsMilestone}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Ellipse.Style>
                 </Ellipse>
-                <Path Grid.Column="1" Width="9" Height="9" Fill="#FF60A5FA" Stretch="Uniform"
-                      Data="M 0.5,0.5 L 1,0 L 1.5,0.5 L 1,1 Z" VerticalAlignment="Center">
+                <Path Grid.Column="1" Width="9" Height="9" Stretch="Uniform"
+                      Data="M 0.5,0.5 L 1,0 L 1.5,0.5 L 1,1 Z" VerticalAlignment="Center"
+                      Fill="{Binding BarColorHex, Converter={StaticResource HexToBrush}}">
                     <Path.Style>
                         <Style TargetType="Path">
                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -964,7 +968,7 @@
             <ColumnDefinition Width="5"/>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="5"/>
-            <ColumnDefinition Width="380"/>
+            <ColumnDefinition Width="300"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="56"/>
@@ -1114,48 +1118,16 @@
         <Border Grid.Column="1" Grid.ColumnSpan="5" Grid.Row="0" Background="{DynamicResource PanelBrush}"
                 BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,0,0,1">
             <DockPanel Margin="12,0" VerticalAlignment="Center">
-                <TextBlock DockPanel.Dock="Left" Text="{Binding WindowTitleText}" Foreground="{DynamicResource TextBrush}"
-                           FontSize="14" VerticalAlignment="Center"/>
-
-                <!-- No real backend to sync with (local-first, per earlier decision), so this
-                     reports local save state instead of a fictitious cloud connection: green
-                     once every edit is written to disk, amber while there are unsaved changes. -->
-                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center"
-                            ToolTip="Cloud sync isn't set up for this project - changes are saved to your local file only.">
-                    <Ellipse Width="7" Height="7" VerticalAlignment="Center">
-                        <Ellipse.Style>
-                            <Style TargetType="Ellipse">
-                                <Setter Property="Fill" Value="#FF22C55E"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsDirty}" Value="True">
-                                        <Setter Property="Fill" Value="#FFFBBF24"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Ellipse.Style>
-                    </Ellipse>
-                    <TextBlock Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="5,0,0,0" VerticalAlignment="Center">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Text" Value="Saved locally"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsDirty}" Value="True">
-                                        <Setter Property="Text" Value="Unsaved changes"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                </StackPanel>
-
-                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="20,0,0,0" VerticalAlignment="Center">
+                <!-- Project title and save-status now live only on the task list's own title row
+                     (Gantt tab) - this bar's job is just view-switching plus WBS#/Search. -->
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="Gantt" Command="{Binding ShowGanttTabCommand}">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource TabButtonStyle}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding ActiveTab}" Value="Gantt">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -1166,8 +1138,8 @@
                             <Style TargetType="Button" BasedOn="{StaticResource TabButtonStyle}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding ActiveTab}" Value="Resources">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -1178,8 +1150,8 @@
                             <Style TargetType="Button" BasedOn="{StaticResource TabButtonStyle}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding ActiveTab}" Value="Dashboard">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -1297,14 +1269,13 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Blank spacer row: keeps this Grid's rows aligned with the task list panel's
-                     Grid to its left, which has a title row (project name/rename/file properties)
-                     here instead. Two independent Grids, so this only needs to match its height. -->
+                <!-- Row aligns with the task list panel's title row (project name/rename/file
+                     properties) to its left - it used to be a blank spacer purely for height
+                     alignment, now it also holds the zoom toolbar so Row 1 below (which the task
+                     list leaves blank at this same position) can stay blank on both sides. -->
                 <Border Grid.Row="0" Background="{DynamicResource PanelAltBrush}"
                         BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,0,0,1"/>
-
-                <!-- Zoom toolbar -->
-                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0">
                     <Button Content="Today" Style="{StaticResource ResetZoomButtonStyle}"
                             Click="JumpToToday_Click" ToolTip="Jump to Today"/>
                     <Button Content="&#8722;" Style="{StaticResource ZoomButtonStyle}" Command="{Binding ZoomOutCommand}" ToolTip="Zoom Out"/>
@@ -1425,19 +1396,19 @@
                       Visibility="{Binding ActiveTab, Converter={StaticResource EnumEquals}, ConverterParameter=Gantt}"/>
 
         <!-- Properties panel. Uses PanelAltBrush (not PanelBrush, which the task list to its left
-             already uses) plus a thick accent-colored left edge, a cast shadow to visually lift
-             it off the canvas, and its own header bar, so it reads as a distinct, purposeful
-             panel rather than more of the same grey continuing past the canvas. -->
+             already uses) plus a cast shadow to visually lift it off the canvas, and its own
+             header bar, so it reads as a distinct, purposeful panel rather than more of the same
+             grey continuing past the canvas. -->
         <Border Grid.Column="5" Grid.Row="1" Background="{DynamicResource PanelAltBrush}"
-                Visibility="{Binding ActiveTab, Converter={StaticResource EnumEquals}, ConverterParameter=Gantt}"
-                BorderBrush="{StaticResource AccentBrush}" BorderThickness="5,0,0,0">
+                Visibility="{Binding ActiveTab, Converter={StaticResource EnumEquals}, ConverterParameter=Gantt}">
             <Border.Effect>
                 <DropShadowEffect Color="Black" Direction="180" ShadowDepth="6" BlurRadius="18" Opacity="0.35"/>
             </Border.Effect>
             <DockPanel>
                 <Border DockPanel.Dock="Top" Background="{DynamicResource PanelBrush}"
                         BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,0,0,1" Padding="16,14">
-                    <TextBlock Foreground="{DynamicResource TextBrush}" FontSize="15" FontWeight="SemiBold">
+                    <TextBlock Foreground="{DynamicResource TextBrush}" FontSize="15" FontWeight="SemiBold"
+                               HorizontalAlignment="Center" TextAlignment="Center">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Text" Value="Task Properties"/>
