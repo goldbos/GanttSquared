@@ -29,6 +29,7 @@
         <conv:AllTrueToVisibilityConverter x:Key="AllTrueToVisibility"/>
         <conv:DarkThemeLabelConverter x:Key="DarkThemeLabel"/>
         <conv:EnumEqualsConverter x:Key="EnumEquals"/>
+        <conv:EnumNotEqualsConverter x:Key="EnumNotEquals"/>
         <conv:BoolToRailWidthConverter x:Key="BoolToRailWidth"/>
         <!--
           Theme toggle: MainWindow.xaml.cs's ToggleTheme mutates each of these SolidColorBrush
@@ -1256,7 +1257,7 @@
 
         <GridSplitter Grid.Column="2" Grid.Row="1" Width="5" HorizontalAlignment="Stretch"
                       Background="{DynamicResource BorderBrush2}"
-                      Visibility="{Binding ActiveTab, Converter={StaticResource EnumEquals}, ConverterParameter=Gantt}"/>
+                      Visibility="{Binding ActiveTab, Converter={StaticResource EnumNotEquals}, ConverterParameter=Dashboard}"/>
 
         <!-- Gantt canvas -->
         <Border Grid.Column="3" Grid.Row="1" Background="{DynamicResource CanvasBackgroundBrush}"
@@ -1613,144 +1614,145 @@
             </DockPanel>
         </Border>
 
-        <!-- Resources view: a compact editable list (name/color/delete, with email+color in a
-             details popup) plus an allocation timeline below - structured the same way as the
-             Gantt tab (a fixed name column, a splitter, then a scrollable canvas with its own
-             synced header), reading the same shared Timeline instance so both charts always
-             agree on date range/zoom. Overlapping bars get the same amber conflict outline used
-             on the main chart. -->
-        <Grid Grid.Column="1" Grid.ColumnSpan="5" Grid.Row="1"
-              Visibility="{Binding ActiveTab, Converter={StaticResource EnumEquals}, ConverterParameter=Resources}">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220"/>
-                <ColumnDefinition Width="5"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+        <!-- Resources view: structured exactly like the Gantt tab (same shared list/splitter/
+             canvas columns and row heights - see GridSplitter above, which now serves both tabs)
+             so switching between them doesn't reflow the window, just what's in it: the list
+             becomes resources, the canvas becomes an allocation timeline. Reads the same shared
+             Timeline instance as Gantt, so both charts always agree on date range/zoom.
+             Overlapping bars get the same amber conflict outline used on the main chart. -->
 
-            <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Background="{DynamicResource PanelBrush}"
-                    BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,0,0,1">
-                <DockPanel Margin="20,14">
-                    <TextBlock Text="Resources" Foreground="{DynamicResource TextBrush}" FontSize="16" VerticalAlignment="Center"/>
-                    <Button DockPanel.Dock="Right" Content="+ Add Resource" Style="{StaticResource PrimaryButton}"
-                            HorizontalAlignment="Right" Command="{Binding AddResourceCommand}"/>
-                </DockPanel>
-            </Border>
+        <!-- Resource list -->
+        <Border Grid.Column="1" Grid.Row="1" Background="{DynamicResource PanelBrush}"
+                Visibility="{Binding ActiveTab, Converter={StaticResource EnumEquals}, ConverterParameter=Resources}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="40"/>
+                    <RowDefinition Height="28"/>
+                    <RowDefinition Height="32"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Text="No resources yet. Click &quot;+ Add Resource&quot; to create one."
-                       Foreground="{DynamicResource MutedTextBrush}" Margin="24,70,0,0">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding Resources.Count}" Value="0">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
+                <!-- Title row, matching the task list's title row -->
+                <Border Grid.Row="0" Background="{DynamicResource PanelBrush}"
+                        BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,0,0,1">
+                    <TextBlock Text="Resources" Foreground="{DynamicResource TextBrush}"
+                               FontSize="17" FontWeight="SemiBold" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                </Border>
 
-            <!-- Compact row list: name + color + warning + details/delete. -->
-            <Border Grid.Row="1" Grid.Column="0" Background="{DynamicResource PanelBrush}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="28"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="RESOURCE" Style="{StaticResource PanelLabel}" Margin="14,0,0,0" VerticalAlignment="Center"/>
-                    <Border Grid.Row="0" VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
-                    <ScrollViewer x:Name="ResourceListScroll" Grid.Row="1"
-                                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding Resources}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Height="{Binding DataContext.RowHeight, RelativeSource={RelativeSource AncestorType=Window}}"
-                                          Margin="8,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Border Grid.Column="0" Width="12" Height="12" CornerRadius="6" Margin="2,0,8,0" VerticalAlignment="Center"
-                                                Background="{Binding Color, Converter={StaticResource HexToBrush}}"
-                                                BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="1"/>
-                                        <TextBox Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"
-                                                 BorderThickness="0" Background="Transparent" Padding="2"/>
-                                        <TextBlock Grid.Column="2" Text="&#9888;" Foreground="{DynamicResource ConflictBrush}" FontSize="13"
-                                                   VerticalAlignment="Center" Margin="4,0"
-                                                   ToolTip="This resource is assigned to two or more tasks with overlapping dates."
-                                                   Visibility="{Binding IsOverallocated, Converter={StaticResource BoolToVisibility}}"/>
-                                        <Button Grid.Column="3" x:Name="DetailsButton" Content="&#8942;" Style="{StaticResource DangerButton}"
-                                                Width="22" Height="22" Margin="2,0" Padding="0" FontSize="12" VerticalAlignment="Center"
-                                                ToolTip="Email, color, assigned tasks"
-                                                Command="{Binding ToggleDetailsCommand}"/>
-                                        <Button Grid.Column="4" Content="&#10005;" Style="{StaticResource DangerButton}"
-                                                Width="22" Height="22" Margin="2,0,0,0" Padding="0" FontSize="10" VerticalAlignment="Center"
-                                                ToolTip="Delete resource"
-                                                Command="{Binding DataContext.DeleteResourceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                CommandParameter="{Binding}"/>
+                <TextBlock Grid.Row="2" Text="RESOURCE" Style="{StaticResource PanelLabel}"
+                           Margin="10,0,0,0" VerticalAlignment="Center"/>
+                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0" VerticalAlignment="Center">
+                    <Button Content="+ Add Resource" Style="{StaticResource ResetZoomButtonStyle}" Command="{Binding AddResourceCommand}"/>
+                </StackPanel>
+                <Border Grid.Row="2" VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
 
-                                        <Popup PlacementTarget="{Binding ElementName=DetailsButton}" Placement="Bottom"
-                                               IsOpen="{Binding IsDetailsExpanded}" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
-                                            <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush2}"
-                                                    BorderThickness="1" CornerRadius="8" Padding="14" Width="230">
-                                                <Border.Effect>
-                                                    <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.4"/>
-                                                </Border.Effect>
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                                                    <TextBlock Text="EMAIL" Style="{StaticResource PanelLabel}" Margin="0,0,0,4"/>
-                                                    <TextBox Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}"/>
-                                                    <TextBlock Text="COLOR (HEX)" Style="{StaticResource PanelLabel}" Margin="0,10,0,4"/>
-                                                    <TextBox Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}"/>
-                                                    <TextBlock Text="{Binding AssignedTaskNames}" Foreground="{DynamicResource MutedTextBrush}"
-                                                               FontSize="11" TextWrapping="Wrap" Margin="0,12,0,0"/>
-                                                </StackPanel>
-                                            </Border>
-                                        </Popup>
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                </Grid>
-            </Border>
+                <TextBlock Grid.Row="3" Text="No resources yet. Click &quot;+ Add Resource&quot; above to create one."
+                           Foreground="{DynamicResource MutedTextBrush}" TextWrapping="Wrap"
+                           Margin="14,14,14,0" VerticalAlignment="Top">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Resources.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
 
-            <GridSplitter Grid.Row="1" Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
-                          Background="{DynamicResource BorderBrush2}"/>
+                <ScrollViewer x:Name="ResourceListScroll" Grid.Row="3"
+                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Resources}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Height="{Binding DataContext.RowHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      Margin="8,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="12" Height="12" CornerRadius="6" Margin="2,0,8,0" VerticalAlignment="Center"
+                                            Background="{Binding Color, Converter={StaticResource HexToBrush}}"
+                                            BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="1"/>
+                                    <TextBox Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"
+                                             BorderThickness="0" Background="Transparent" Padding="2"/>
+                                    <TextBlock Grid.Column="2" Text="&#9888;" Foreground="{DynamicResource ConflictBrush}" FontSize="13"
+                                               VerticalAlignment="Center" Margin="4,0"
+                                               ToolTip="This resource is assigned to two or more tasks with overlapping dates."
+                                               Visibility="{Binding IsOverallocated, Converter={StaticResource BoolToVisibility}}"/>
+                                    <Button Grid.Column="3" x:Name="DetailsButton" Content="&#8942;" Style="{StaticResource DangerButton}"
+                                            Width="22" Height="22" Margin="2,0" Padding="0" FontSize="12" VerticalAlignment="Center"
+                                            ToolTip="Email, color, assigned tasks"
+                                            Command="{Binding ToggleDetailsCommand}"/>
+                                    <Button Grid.Column="4" Content="&#10005;" Style="{StaticResource DangerButton}"
+                                            Width="22" Height="22" Margin="2,0,0,0" Padding="0" FontSize="10" VerticalAlignment="Center"
+                                            ToolTip="Delete resource"
+                                            Command="{Binding DataContext.DeleteResourceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
 
-            <!-- Allocation timeline canvas -->
-            <Border Grid.Row="1" Grid.Column="2" Background="{DynamicResource CanvasBackgroundBrush}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="28"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+                                    <Popup PlacementTarget="{Binding ElementName=DetailsButton}" Placement="Bottom"
+                                           IsOpen="{Binding IsDetailsExpanded}" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+                                        <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush2}"
+                                                BorderThickness="1" CornerRadius="8" Padding="14" Width="230">
+                                            <Border.Effect>
+                                                <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.4"/>
+                                            </Border.Effect>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                                <TextBlock Text="EMAIL" Style="{StaticResource PanelLabel}" Margin="0,0,0,4"/>
+                                                <TextBox Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBlock Text="COLOR (HEX)" Style="{StaticResource PanelLabel}" Margin="0,10,0,4"/>
+                                                <TextBox Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBlock Text="{Binding AssignedTaskNames}" Foreground="{DynamicResource MutedTextBrush}"
+                                                           FontSize="11" TextWrapping="Wrap" Margin="0,12,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
 
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0">
-                        <Button Content="Today" Style="{StaticResource ResetZoomButtonStyle}"
-                                Click="ResourceJumpToToday_Click" ToolTip="Jump to Today"/>
-                        <Button Content="&#8722;" Style="{StaticResource ZoomButtonStyle}" Command="{Binding ZoomOutCommand}" ToolTip="Zoom Out"/>
-                        <Button Content="+" Style="{StaticResource ZoomButtonStyle}" Command="{Binding ZoomInCommand}" ToolTip="Zoom In"/>
-                        <Button Content="Reset" Style="{StaticResource ResetZoomButtonStyle}"
-                                Command="{Binding ResetZoomCommand}" ToolTip="Reset Zoom"/>
-                    </StackPanel>
+        <!-- Allocation timeline canvas -->
+        <Border Grid.Column="3" Grid.Row="1" Background="{DynamicResource CanvasBackgroundBrush}"
+                Visibility="{Binding ActiveTab, Converter={StaticResource EnumEquals}, ConverterParameter=Resources}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="40"/>
+                    <RowDefinition Height="28"/>
+                    <RowDefinition Height="32"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-                    <Border Grid.Row="0" VerticalAlignment="Bottom" Height="1" Background="{DynamicResource BorderBrush2}"/>
+                <!-- Row aligns with the resource list's title row -->
+                <Border Grid.Row="0" Background="{DynamicResource PanelAltBrush}"
+                        BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,0,0,1"/>
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <Button Content="Today" Style="{StaticResource ResetZoomButtonStyle}"
+                            Click="ResourceJumpToToday_Click" ToolTip="Jump to Today"/>
+                    <Button Content="&#8722;" Style="{StaticResource ZoomButtonStyle}" Command="{Binding ZoomOutCommand}" ToolTip="Zoom Out"/>
+                    <Button Content="+" Style="{StaticResource ZoomButtonStyle}" Command="{Binding ZoomInCommand}" ToolTip="Zoom In"/>
+                    <Button Content="Reset" Style="{StaticResource ResetZoomButtonStyle}"
+                            Command="{Binding ResetZoomCommand}" ToolTip="Reset Zoom"/>
+                </StackPanel>
 
-                    <ScrollViewer x:Name="ResourceHeaderScroll" Grid.Row="0" VerticalScrollBarVisibility="Disabled"
+                <!-- Timeline header, matching the Gantt canvas's own header row -->
+                <Border Grid.Row="2" Background="{DynamicResource PanelAltBrush}"
+                        BorderBrush="{DynamicResource BorderBrush2}" BorderThickness="0,1,0,1">
+                    <ScrollViewer x:Name="ResourceHeaderScroll" VerticalScrollBarVisibility="Disabled"
                                   HorizontalScrollBarVisibility="Hidden" IsHitTestVisible="False">
                         <ItemsControl x:Name="ResourceHeaderContent" ItemsSource="{Binding Timeline.Ticks}" ItemTemplate="{StaticResource TimelineTickTemplate}"
                                       HorizontalAlignment="Left" VerticalAlignment="Top">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <Canvas Width="{Binding ResourceCanvasWidth}" Height="28"/>
+                                    <Canvas Width="{Binding ResourceCanvasWidth}" Height="32"/>
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemContainerStyle>
@@ -1760,9 +1762,10 @@
                             </ItemsControl.ItemContainerStyle>
                         </ItemsControl>
                     </ScrollViewer>
+                </Border>
 
-                    <ScrollViewer x:Name="ResourceCanvasScroll" Grid.Row="1" Background="Transparent"
-                                  VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden">
+                <ScrollViewer x:Name="ResourceCanvasScroll" Grid.Row="3" Background="Transparent"
+                              VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden">
                         <Grid x:Name="ResourceCanvasBodyGrid" Background="Transparent">
                             <ItemsControl ItemsSource="{Binding Resources}" ItemTemplate="{StaticResource ResourceRowStripeTemplate}"
                                           HorizontalAlignment="Left" VerticalAlignment="Top">
@@ -1814,7 +1817,6 @@
                     </ScrollViewer>
                 </Grid>
             </Border>
-        </Grid>
 
         <!-- Dashboard: a project-wide summary snapshot (Dashboard.RebuildDashboard recomputes it
              on every edit), not an editable view - nothing here routes back through undo/redo. -->

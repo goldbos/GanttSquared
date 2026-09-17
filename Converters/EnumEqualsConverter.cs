@@ -19,3 +19,19 @@ public sealed class EnumEqualsConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
 }
+
+/// <summary>
+/// Inverse of EnumEqualsConverter: Visible unless the bound enum value's name matches
+/// ConverterParameter - used for chrome shared by every tab except one (e.g. the task/resource
+/// list column and its splitter, which both Gantt and Resources use but Dashboard doesn't).
+/// </summary>
+public sealed class EnumNotEqualsConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is not null && string.Equals(value.ToString(), parameter as string, StringComparison.Ordinal)
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}

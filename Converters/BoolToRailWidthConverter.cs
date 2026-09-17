@@ -8,7 +8,11 @@ namespace GanttSquared.Converters;
 public sealed class BoolToRailWidthConverter : IValueConverter
 {
     public const double CondensedWidth = 48;
-    public const double ExpandedWidth = 190;
+
+    // Sized to fit the longest label ("New Project"/"Open Project") plus icon and padding with
+    // a little breathing room, not a round number - 190 left a wide dead strip to the right of
+    // every shorter label (most of them, e.g. "Save", "Undo", "Density").
+    public const double ExpandedWidth = 150;
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         new GridLength(value is true ? ExpandedWidth : CondensedWidth);
